@@ -1583,8 +1583,9 @@
           <label><input type="checkbox" value="Physical Disability">Physical Disability</label>
           <label><input type="checkbox" value="Sensory Impairment">Sensory Impairment</label>
           <label><input type="checkbox" value="Complex Needs">Complex Needs</label>
-          <label><input type="checkbox" value="Other">Other</label>
+          <label><input type="checkbox" value="Other" onchange="toggleAsnOther(this)">Other</label>
         </div>
+        <input type="text" id="new-pupil-asn-other" class="form-input" placeholder="Type the category (e.g. Foetal Alcohol Syndrome)" style="display:none;margin-top:8px">
       </div>
       <div class="form-group">
         <label class="form-label">Parents / guardians <span style="color:var(--ink-soft);font-weight:400">(each is emailed for consent — photos &amp; videos stay locked until all approve)</span></label>
@@ -3250,6 +3251,13 @@
       reindexGuardianRows()
     }
 
+    function toggleAsnOther(cb) {
+      const inp = document.getElementById('new-pupil-asn-other')
+      if (!inp) return
+      inp.style.display = cb.checked ? 'block' : 'none'
+      if (cb.checked) inp.focus(); else inp.value = ''
+    }
+
     function showAddPupilModal() {
       ;['new-pupil-name','new-pupil-dob'].forEach(id => {
         const el = document.getElementById(id); if (el) el.value = ''
@@ -3257,6 +3265,7 @@
       renderGuardianRows(2)
       const asn = document.getElementById('new-pupil-asn')
       if (asn) asn.querySelectorAll('input[type=checkbox]').forEach(c => { c.checked = false })
+      const otherInp = document.getElementById('new-pupil-asn-other'); if (otherInp) { otherInp.value = ''; otherInp.style.display = 'none' }
       const errEl = document.getElementById('new-pupil-err'); if (errEl) errEl.textContent = ''
       document.getElementById('modal-add-pupil').style.display = 'flex'
     }
@@ -3360,7 +3369,9 @@
     async function saveNewPupil() {
       const name = document.getElementById('new-pupil-name').value.trim()
       const dob = document.getElementById('new-pupil-dob').value || null
-      const asn = Array.from(document.querySelectorAll('#new-pupil-asn input:checked')).map(c => c.value).join(', ') || null
+      const asnOther = (document.getElementById('new-pupil-asn-other')?.value || '').trim()
+      const asn = Array.from(document.querySelectorAll('#new-pupil-asn input:checked'))
+        .map(c => (c.value === 'Other' && asnOther) ? asnOther : c.value).join(', ') || null
       const guardians = Array.from(document.querySelectorAll('#new-pupil-guardians .guardian-input-row')).map(r => ({
         name: r.querySelector('.g-name').value.trim(),
         email: r.querySelector('.g-email').value.trim().toLowerCase(),
@@ -3371,6 +3382,7 @@
       errEl.textContent = ''
       if (!name) { errEl.textContent = 'Name is required.'; return }
       if (!asn) { errEl.textContent = 'Please select at least one ASN category.'; return }
+      if (document.querySelector('#new-pupil-asn input[value="Other"]:checked') && !asnOther) { errEl.textContent = 'Please type your "Other" category.'; return }
       const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       for (const g of guardians) { if (!emailRe.test(g.email)) { errEl.textContent = 'Each guardian needs a valid email for consent.'; return } }
 
