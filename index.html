@@ -400,6 +400,36 @@
 
     .passport-textarea:focus { border-color: var(--green-mid); background: white; }
 
+    /* ── PASSPORT v2 (soft, child-centred) ── */
+    .pp2-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; align-items: start; }
+    .pp2-card { background: var(--tint, #fff); border-radius: 20px; padding: 16px 16px 14px; box-shadow: 0 1px 2px rgba(24,58,44,.05), 0 8px 22px rgba(24,58,44,.05); }
+    .pp2-span2 { grid-column: span 2; }
+    @media (max-width: 680px) { .pp2-span2 { grid-column: span 1; } }
+    .pp2-head { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+    .pp2-ico { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: #ffffffcc; font-size: 1.05rem; flex: none; }
+    .pp2-title { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 1.02rem; line-height: 1.1; color: var(--tint-ink, var(--green-deep)); }
+    .pp2-ta { width: 100%; border: none; background: #ffffffcc; border-radius: 12px; padding: 10px 11px; font-size: 0.9rem; line-height: 1.55; color: var(--ink); resize: vertical; min-height: 82px; font-family: inherit; outline: none; }
+    .pp2-ta:focus { box-shadow: 0 0 0 2px var(--tint-ink, var(--green-mid)); }
+    .pp2-ta::placeholder { color: #9aa8a0; }
+    .pp2-id { display: flex; gap: 16px; align-items: center; }
+    .pp2-photo { width: 92px; height: 108px; border-radius: 16px; background: var(--green-soft, #e7f3ec); flex: none; display: grid; place-items: center; color: var(--green-mid); cursor: pointer; overflow: hidden; border: 2px dashed color-mix(in srgb, var(--green-mid) 40%, transparent); position: relative; text-align: center; }
+    .pp2-photo img { width: 100%; height: 100%; object-fit: cover; }
+    .pp2-photo .ph { font-size: 0.72rem; font-weight: 600; }
+    .pp2-idmeta h2 { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 1.6rem; margin: 0 0 2px; color: var(--ink); }
+    .pp2-idmeta .call { color: var(--ink-soft); font-size: 0.85rem; margin-bottom: 9px; }
+    .pp2-dob { display: inline-flex; align-items: center; gap: 7px; }
+    .pp2-dob input { border: 1.5px solid var(--border); border-radius: 999px; padding: 5px 12px; font-size: 0.82rem; font-family: inherit; color: var(--green-deep); background: var(--green-soft, #e7f3ec); font-weight: 600; outline: none; }
+    .pp2-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pp2-pill { flex: 1; min-width: 130px; border: 1.5px solid var(--border); background: #fff; border-radius: 13px; padding: 9px 10px; text-align: center; cursor: pointer; font-family: inherit; font-size: 0.82rem; font-weight: 600; color: var(--ink-soft); transition: transform .12s, border-color .12s, background .12s; }
+    .pp2-pill small { display: block; font-size: 0.66rem; font-weight: 500; opacity: 0.8; margin-top: 1px; }
+    .pp2-pill:hover { border-color: var(--green-mid); transform: translateY(-1px); }
+    .pp2-pill.on { background: var(--green-deep, #1a5c3a); border-color: var(--green-deep, #1a5c3a); color: #fff; }
+    .pp2-box-remove { margin-left: auto; background: none; border: none; color: #b91c1c; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
+    .pp2-box-title { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 1rem; color: var(--tint-ink, var(--green-deep)); background: transparent; border: none; border-bottom: 2px solid #ffffff99; width: 100%; padding: 0 0 6px; margin-bottom: 9px; outline: none; }
+    .pp2-add { display: grid; place-items: center; min-height: 118px; border: 2px dashed color-mix(in srgb, var(--green-mid) 45%, transparent); border-radius: 20px; background: transparent; cursor: pointer; color: var(--green-mid); font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 0.95rem; gap: 6px; transition: background .15s, transform .12s; }
+    .pp2-add:hover { background: var(--green-soft, #e7f3ec); transform: translateY(-1px); }
+    .pp2-add .plus { width: 38px; height: 38px; border-radius: 13px; background: var(--green-deep, #1a5c3a); color: #fff; display: grid; place-items: center; font-size: 22px; line-height: 1; }
+
     .save-indicator {
       font-size: 0.75rem; color: var(--green-mid);
       margin-top: 0.4rem; display: none;
@@ -1472,37 +1502,79 @@
               <div class="section-title">Pupil Passport</div>
               <span class="badge badge-green" id="passport-updated">—</span>
             </div>
-            <div class="passport-grid">
-              <div class="passport-section">
-                <div class="passport-section-title">⭐ What I like</div>
-                <textarea class="passport-textarea" id="pp-likes" placeholder="What does this pupil enjoy? Interests, activities, subjects they love..." onchange="savePassportField('passport_likes', this.value)"></textarea>
-                <div class="save-indicator" id="save-likes">Saved ✓</div>
+            <div class="pp2-grid">
+
+              <div class="pp2-card pp2-span2 pp2-id" style="--tint:#fff">
+                <div class="pp2-photo" onclick="document.getElementById('pp-photo-file').click()" title="Add or change photo">
+                  <img id="pp-photo-img" alt="" style="display:none">
+                  <span class="ph" id="pp-photo-empty">📷<br>Add photo</span>
+                </div>
+                <input type="file" id="pp-photo-file" accept="image/*" style="display:none" onchange="uploadPassportPhoto(this)">
+                <div class="pp2-idmeta">
+                  <h2 id="pp-name">—</h2>
+                  <div class="call">This is me</div>
+                  <span class="pp2-dob"><input type="date" id="pp-dob" onchange="savePassportField('dob', this.value)" aria-label="Date of birth"></span>
+                </div>
               </div>
-              <div class="passport-section">
-                <div class="passport-section-title">😣 What I find difficult</div>
-                <textarea class="passport-textarea" id="pp-dislikes" placeholder="What does this pupil find challenging? Situations, tasks, environments..." onchange="savePassportField('passport_dislikes', this.value)"></textarea>
-                <div class="save-indicator" id="save-dislikes">Saved ✓</div>
+
+              <div class="pp2-card pp2-span2" style="--tint:#E9F1FB;--tint-ink:#1F5591">
+                <div class="pp2-head"><span class="pp2-ico">🗣️</span><span class="pp2-title">My language stage</span></div>
+                <div class="pp2-pills" role="group" aria-label="Language stage">
+                  <button class="pp2-pill" data-stage="social" onclick="savePassportStage('social')">Social partner<small>SCERTS</small></button>
+                  <button class="pp2-pill" data-stage="communication" onclick="savePassportStage('communication')">Communication partner<small>SCERTS</small></button>
+                  <button class="pp2-pill" data-stage="language" onclick="savePassportStage('language')">Language partner<small>SCERTS</small></button>
+                </div>
               </div>
-              <div class="passport-section">
-                <div class="passport-section-title">💬 How I communicate</div>
-                <textarea class="passport-textarea" id="pp-communication" placeholder="How does this pupil communicate best? Verbal, visual, AAC, Makaton, PECS..." onchange="savePassportField('passport_communication', this.value)"></textarea>
-                <div class="save-indicator" id="save-communication">Saved ✓</div>
+
+              <div class="pp2-card pp2-span2" style="--tint:#E8F5EC;--tint-ink:#1E6A45">
+                <div class="pp2-head"><span class="pp2-ico">💬</span><span class="pp2-title">How I communicate</span></div>
+                <textarea class="pp2-ta" id="pp-communication" placeholder="Signs, AAC, visuals, speech… and how staff can help." onchange="savePassportField('passport_communication', this.value)"></textarea>
               </div>
-              <div class="passport-section">
-                <div class="passport-section-title">😌 What helps me calm down</div>
-                <textarea class="passport-textarea" id="pp-calm" placeholder="What strategies help when this pupil is upset or dysregulated..." onchange="savePassportField('passport_calm', this.value)"></textarea>
-                <div class="save-indicator" id="save-calm">Saved ✓</div>
+
+              <div class="pp2-card" style="--tint:#FCEDE1;--tint-ink:#9B531F">
+                <div class="pp2-head"><span class="pp2-ico">💛</span><span class="pp2-title">I like</span></div>
+                <textarea class="pp2-ta" id="pp-likes" placeholder="Things I enjoy…" onchange="savePassportField('passport_likes', this.value)"></textarea>
               </div>
-              <div class="passport-section full-width">
-                <div class="passport-section-title">✅ What helps me learn</div>
-                <textarea class="passport-textarea" id="pp-strategies" placeholder="Teaching strategies, adjustments, approaches that work well for this pupil..." onchange="savePassportField('passport_strategies', this.value)" style="min-height:100px"></textarea>
-                <div class="save-indicator" id="save-strategies">Saved ✓</div>
+
+              <div class="pp2-card" style="--tint:#FCEBEC;--tint-ink:#9E3B45">
+                <div class="pp2-head"><span class="pp2-ico">🚫</span><span class="pp2-title">I don't like</span></div>
+                <textarea class="pp2-ta" id="pp-dislikes" placeholder="Things I find hard or upsetting…" onchange="savePassportField('passport_dislikes', this.value)"></textarea>
               </div>
-              <div class="passport-section full-width">
-                <div class="passport-section-title">📝 Teacher notes (private)</div>
-                <textarea class="passport-textarea" id="pp-notes" placeholder="Any additional notes for supply teachers or staff — what to know before the session..." onchange="savePassportField('passport_notes', this.value)" style="min-height:100px"></textarea>
-                <div class="save-indicator" id="save-notes">Saved ✓</div>
+
+              <div class="pp2-card" style="--tint:#E8F5EC;--tint-ink:#1E6A45">
+                <div class="pp2-head"><span class="pp2-ico">⭐</span><span class="pp2-title">Things I am good at</span></div>
+                <textarea class="pp2-ta" id="pp-good_at" placeholder="My strengths…" onchange="savePassportField('passport_good_at', this.value)"></textarea>
               </div>
+
+              <div class="pp2-card" style="--tint:#FBF2D9;--tint-ink:#8A6410">
+                <div class="pp2-head"><span class="pp2-ico">🤝</span><span class="pp2-title">Things I need help with</span></div>
+                <textarea class="pp2-ta" id="pp-needs_help" placeholder="Where I need support…" onchange="savePassportField('passport_needs_help', this.value)"></textarea>
+              </div>
+
+              <div class="pp2-card pp2-span2" style="--tint:#E9F1FB;--tint-ink:#1F5591">
+                <div class="pp2-head"><span class="pp2-ico">🧠</span><span class="pp2-title">How I learn best</span></div>
+                <textarea class="pp2-ta" id="pp-learn_best" placeholder="What helps me learn — approaches, environment, grouping…" onchange="savePassportField('passport_learn_best', this.value)"></textarea>
+              </div>
+
+              <div class="pp2-card" style="--tint:#F1ECFB;--tint-ink:#5B47A0">
+                <div class="pp2-head"><span class="pp2-ico">🧼</span><span class="pp2-title">Personal care needs</span></div>
+                <textarea class="pp2-ta" id="pp-personal_care" placeholder="Toileting, eating, hygiene support…" onchange="savePassportField('passport_personal_care', this.value)"></textarea>
+              </div>
+
+              <div class="pp2-card" style="--tint:#FCEBEC;--tint-ink:#9E3B45">
+                <div class="pp2-head"><span class="pp2-ico">⚕️</span><span class="pp2-title">Medical needs</span></div>
+                <textarea class="pp2-ta" id="pp-medical" placeholder="Diagnoses, conditions, things to be aware of…" onchange="savePassportField('passport_medical', this.value)"></textarea>
+              </div>
+
+              <div class="pp2-card pp2-span2" style="--tint:#FBF2D9;--tint-ink:#8A6410">
+                <div class="pp2-head"><span class="pp2-ico">✨</span><span class="pp2-title">Other info</span></div>
+                <textarea class="pp2-ta" id="pp-other" placeholder="Anything else staff should know…" onchange="savePassportField('passport_other', this.value)"></textarea>
+              </div>
+
+              <div id="pp2-boxes" style="display:contents"></div>
+
+              <button class="pp2-add" type="button" onclick="addPassportBox()"><span class="plus" aria-hidden="true">+</span>Add a box</button>
+
             </div>
           </div>
 
@@ -2391,11 +2463,17 @@
       }
 
       // Fill passport fields
-      const fields = ['likes','dislikes','communication','calm','strategies','notes']
+      const fields = ['communication','likes','dislikes','good_at','needs_help','learn_best','personal_care','medical','other']
       fields.forEach(f => {
         const el = document.getElementById(`pp-${f}`)
         if (el) el.value = currentPupil[`passport_${f}`] || ''
       })
+      document.getElementById('pp-name').textContent = currentPupil.full_name || '—'
+      document.getElementById('pp-dob').value = currentPupil.dob || ''
+      document.querySelectorAll('#panel-passport .pp2-pill').forEach(p =>
+        p.classList.toggle('on', p.dataset.stage === currentPupil.passport_language_stage))
+      renderPassportBoxes()
+      loadPassportPhoto()
 
       if (currentPupil.passport_updated_at) {
         document.getElementById('passport-updated').textContent = 'Updated ' + new Date(currentPupil.passport_updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -2591,6 +2669,91 @@
 
         document.getElementById('passport-updated').textContent = 'Updated just now'
       }, 800)
+    }
+
+    function savePassportStage(stage) {
+      document.querySelectorAll('#panel-passport .pp2-pill').forEach(p => p.classList.toggle('on', p.dataset.stage === stage))
+      savePassportField('passport_language_stage', stage)
+    }
+
+    // ── Custom passport boxes ──
+    function passportBoxes() { return Array.isArray(currentPupil?.passport_boxes) ? currentPupil.passport_boxes : [] }
+    const PP_BOX_TINTS = [['#F1ECFB','#5B47A0'],['#E8F5EC','#1E6A45'],['#E9F1FB','#1F5591'],['#FCEDE1','#9B531F'],['#FBF2D9','#8A6410'],['#FCEBEC','#9E3B45']]
+    function renderPassportBoxes() {
+      const wrap = document.getElementById('pp2-boxes')
+      wrap.innerHTML = passportBoxes().map((b, i) => {
+        const t = PP_BOX_TINTS[i % PP_BOX_TINTS.length]
+        return `<div class="pp2-card pp2-span2" style="--tint:${t[0]};--tint-ink:${t[1]}">
+          <div class="pp2-head">
+            <input class="pp2-box-title" value="${escapeHtml(b.title || '')}" placeholder="Box title" oninput="updatePassportBox(${i},'title',this.value)">
+            <button class="pp2-box-remove" type="button" onclick="removePassportBox(${i})">Remove</button>
+          </div>
+          <textarea class="pp2-ta" placeholder="Write what staff need to know…" oninput="updatePassportBox(${i},'text',this.value)">${escapeHtml(b.text || '')}</textarea>
+        </div>`
+      }).join('')
+    }
+    function addPassportBox() {
+      currentPupil.passport_boxes = passportBoxes().concat([{ title: '', text: '' }])
+      renderPassportBoxes()
+      savePassportBoxes()
+    }
+    function updatePassportBox(i, key, val) {
+      const boxes = passportBoxes().slice()
+      if (!boxes[i]) return
+      boxes[i] = { ...boxes[i], [key]: val }
+      currentPupil.passport_boxes = boxes
+      savePassportBoxes()
+    }
+    function removePassportBox(i) {
+      const boxes = passportBoxes().slice()
+      boxes.splice(i, 1)
+      currentPupil.passport_boxes = boxes
+      renderPassportBoxes()
+      savePassportBoxes()
+    }
+    let boxesTimer
+    function savePassportBoxes() {
+      clearTimeout(boxesTimer)
+      boxesTimer = setTimeout(async () => {
+        await fetch(`${SUPABASE_URL}/rest/v1/pupils?id=eq.${currentPupil.id}`, {
+          method: 'PATCH',
+          headers: { ...headers(session.access_token), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ passport_boxes: passportBoxes(), passport_updated_at: new Date().toISOString() })
+        })
+        document.getElementById('passport-updated').textContent = 'Updated just now'
+      }, 800)
+    }
+
+    // ── Passport photo ──
+    async function loadPassportPhoto() {
+      const img = document.getElementById('pp-photo-img'), empty = document.getElementById('pp-photo-empty')
+      if (!currentPupil.photo_path) { img.style.display = 'none'; img.removeAttribute('src'); empty.style.display = 'block'; return }
+      try {
+        const { data } = await getSbClient().storage.from('evidence-media').createSignedUrl(currentPupil.photo_path, 600)
+        if (data?.signedUrl) { img.src = data.signedUrl; img.style.display = 'block'; empty.style.display = 'none' }
+      } catch (e) {}
+    }
+    async function uploadPassportPhoto(input) {
+      const file = input.files[0]; if (!file) return
+      if (!file.type.startsWith('image/')) { alert('Please choose an image.'); return }
+      if (file.size > 8 * 1024 * 1024) { alert('That image is too large (max 8 MB).'); return }
+      const ext = (file.name.split('.').pop() || 'jpg').replace(/[^a-z0-9]/gi, '').slice(0, 5) || 'jpg'
+      const path = `${session.user.id}/${currentPupil.id}/passport_${docRandomId()}.${ext}`
+      const up = await fetch(`${SUPABASE_URL}/storage/v1/object/evidence-media/${path}`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': file.type },
+        body: file
+      })
+      if (!up.ok) { alert('Photo upload failed. Please try again.'); return }
+      await fetch(`${SUPABASE_URL}/rest/v1/pupils?id=eq.${currentPupil.id}`, {
+        method: 'PATCH',
+        headers: { ...headers(session.access_token), 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ photo_path: path, passport_updated_at: new Date().toISOString() })
+      })
+      currentPupil.photo_path = path
+      input.value = ''
+      loadPassportPhoto()
+      document.getElementById('passport-updated').textContent = 'Updated just now'
     }
 
     // ── TARGETS ──
