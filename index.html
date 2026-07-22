@@ -738,6 +738,8 @@
     .target-status { font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.7rem; border-radius: 20px; }
     .target-desc { font-size: 0.9rem; color: var(--ink); line-height: 1.5; }
     .target-meta { font-size: 0.75rem; color: var(--ink-soft); margin-top: 0.5rem; }
+    .iep-label { font-size: 0.62rem; font-weight: 700; color: var(--green-mid); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+    .iep-text { font-size: 0.82rem; color: #334155; line-height: 1.45; }
     /* ── Plan-targets builder ── */
     .pt-modal { max-width: 640px; width: 100%; max-height: 92vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
     .pt-head { display: flex; align-items: center; justify-content: space-between; padding: 1.1rem 1.4rem; border-bottom: 1px solid var(--border); }
@@ -779,6 +781,13 @@
     .pt-noresults { text-align: center; color: var(--ink-soft); font-size: 0.85rem; margin-top: 20px; }
     .pt-search { width: 100%; margin-bottom: 12px; }
     .pt-add-btn { width: 100%; margin-top: 10px; }
+    .pt-fieldhint { font-size: 0.75rem; color: var(--ink-soft); margin: 2px 0 6px; line-height: 1.4; }
+    .pt-batch-card { background: #fbfdfc; border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+    .pt-batch-cardhead { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .pt-batch-remove { margin-left: auto; background: none; border: none; color: #b91c1c; font-size: 0.78rem; font-weight: 600; cursor: pointer; padding: 2px 4px; }
+    .pt-batch-labelrow { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+    .pt-applyall { background: none; border: none; color: var(--green-mid); font-size: 0.72rem; font-weight: 700; cursor: pointer; padding: 0; }
+    .pt-batch-card .form-label { margin-bottom: 4px; }
     .uv-chip { display: inline-flex; flex-direction: column; align-items: flex-start; background: #fff; border: 1.5px solid var(--border); border-radius: 10px; padding: 7px 11px; font-size: 0.82rem; font-weight: 600; color: var(--ink); cursor: pointer; }
     .uv-chip.on { background: #e0f2fe; border-color: #0891b2; color: #0369a1; }
     .uv-sub { font-size: 0.68rem; color: var(--ink-soft); font-weight: 500; margin-top: 1px; }
@@ -1807,7 +1816,29 @@
           <div id="pt-basket-count" style="font-size:0.9rem;font-weight:800;color:#1a5c3a">0 new targets</div>
           <div id="pt-basket-sub" style="font-size:0.75rem;color:var(--ink-soft)"></div>
         </div>
-        <button class="btn" id="pt-save-btn" onclick="ptSavePlan()" disabled>Save plan</button>
+        <button class="btn" id="pt-save-btn" onclick="ptOpenBatchDetails()" disabled>Add details</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLAN TARGETS — batch "Add details" page (all selected short-term targets) -->
+  <div class="modal-overlay" id="modal-plan-details" style="z-index:60">
+    <div class="modal pt-modal">
+      <div class="pt-head">
+        <button class="pt-close" onclick="closeModal('modal-plan-details')" aria-label="Back" title="Back to selection">←</button>
+        <div class="modal-title" style="margin:0">Add details</div>
+        <button class="pt-close" onclick="closeModal('modal-plan-details')" aria-label="Close">✕</button>
+      </div>
+      <div class="pt-fixed" style="padding-top:12px;padding-bottom:12px">
+        <div style="font-size:0.82rem;color:var(--ink-soft);line-height:1.5">Add the experiences, implementation detail and staff for each selected target. Use <strong>↧ apply to all</strong> to copy a Long Term Target or Staff name across every target.</div>
+      </div>
+      <div class="pt-body" id="pt-batch-body"></div>
+      <div class="pt-footer">
+        <div>
+          <div id="pt-batch-count" style="font-size:0.9rem;font-weight:800;color:#1a5c3a">0 targets</div>
+          <div style="font-size:0.75rem;color:var(--ink-soft)">← Back to add more</div>
+        </div>
+        <button class="btn" id="pt-batch-save" onclick="ptSaveBatch()">Save all</button>
       </div>
     </div>
   </div>
@@ -2636,12 +2667,21 @@
           ? `<div class="target-thumbs">${thumbUrls.map(url => `<div class="target-thumb-wrap" onclick="openEvLightbox('${url}','')"><img class="target-thumb-img" src="${url}" loading="lazy"></div>`).join('')}</div>`
           : ''
 
+        const iepField = (label, val, italic) => val
+          ? `<div style="margin-top:8px"><div class="iep-label">${label}</div><div class="iep-text"${italic ? ' style="font-style:italic"' : ''}>${escapeHtml(val)}</div></div>`
+          : ''
+
         return `<div class="target-card" style="border-left-color:${fw}">
           <div class="target-top">
             <span class="target-status" style="background:${sc.bg};color:${sc.color}">${statusLabel[t.status] || t.status}</span>
             ${meta ? `<span class="target-meta" style="margin-left:auto">${meta}</span>` : ''}
           </div>
-          <div class="target-desc">${t.description}</div>
+          ${iepField('Long Term Target', t.long_term_target, true)}
+          <div class="iep-label" style="margin-top:8px">Short Term Target</div>
+          <div class="target-desc">${escapeHtml(t.description || '')}</div>
+          ${iepField('Experiences', t.experiences)}
+          ${iepField('Implementation detail', t.implementation_detail)}
+          ${t.staff ? `<div style="margin-top:8px;display:flex;gap:8px;align-items:baseline"><span class="iep-label">Staff</span><span class="iep-text" style="font-weight:600">${escapeHtml(t.staff)}</span></div>` : ''}
           ${thumbsHtml}
         </div>`
       }
@@ -3882,11 +3922,14 @@
     }
 
     const ptState = { term: 'Term 1', fw: 'milestones', basket: [], search: '', expanded: new Set(), browse: true, cspCategory: null, ahpProfession: null, custom: '' }
+    const ptTeacherName = () => (currentProfile?.full_name || session?.user?.user_metadata?.full_name || '')
+    // A selected short-term target awaiting its IEP detail (filled on the "Add details" page).
+    const ptSelItem = (s) => ({ ...s, description: s.statement, long_term_target: '', experiences: '', implementation_detail: '', staff: '' })
 
     const ptFwLabel = () => (FW_LABEL[ptState.fw] || ptState.fw)
     const ptTermCount = (term) => hubTargets.filter(t => t.planned_term === term).length + ptState.basket.filter(b => b.term === term).length
     const ptFwCount = (fw) => hubTargets.filter(t => t.framework === fw).length + ptState.basket.filter(b => b.framework === fw).length
-    const ptRowMatches = (item, row) => (row.id && item.milestone_id === row.id) || (item.framework === row.framework && (item.description || '') === row.statement)
+    const ptRowMatches = (item, row) => (row.id && item.milestone_id === row.id) || (item.framework === row.framework && ((item.description || '') === row.statement))
     const ptSavedTerms = (row) => hubTargets.filter(t => ptRowMatches(t, row)).map(t => t.planned_term)
     const ptBasketTerms = (row) => ptState.basket.filter(b => ptRowMatches(b, row)).map(b => b.term)
     const ptFmtTerms = (terms) => {
@@ -3921,11 +3964,11 @@
 
     function ptRenderFooter() {
       const n = ptState.basket.length
-      document.getElementById('pt-basket-count').textContent = `${n} new target${n !== 1 ? 's' : ''}`
-      document.getElementById('pt-basket-sub').textContent = `${hubTargets.length + n} in plan total`
+      document.getElementById('pt-basket-count').textContent = `${n} target${n !== 1 ? 's' : ''} selected`
+      document.getElementById('pt-basket-sub').textContent = n ? 'Add experiences, staff & detail next' : 'Tap targets to select them'
       const btn = document.getElementById('pt-save-btn')
       btn.disabled = n === 0
-      btn.textContent = n > 0 ? `Save plan (${n})` : 'Save plan'
+      btn.textContent = n > 0 ? `Add details (${n}) →` : 'Add details'
     }
 
     function ptSetTerm(t) { ptState.term = t; ptRenderChrome(); ptRenderBody() }
@@ -4014,7 +4057,11 @@
       const key = `${row.id}:${ptState.term}`
       const idx = ptState.basket.findIndex(b => b.key === key)
       if (idx >= 0) ptState.basket.splice(idx, 1)
-      else ptState.basket.push({ key, framework: ptState.fw, term: ptState.term, milestone_id: row.id, description: row.statement, cfe_level: row.cfe_level ? PT_CFE_LEVELS[row.cfe_level] : null, category: row.strand || row.section || ptFwLabel() })
+      else ptState.basket.push(ptSelItem({
+        key, framework: ptState.fw, term: ptState.term, milestone_id: row.id, statement: row.statement,
+        cfe_level: row.cfe_level ? PT_CFE_LEVELS[row.cfe_level] : null,
+        category: row.strand || row.section || ptFwLabel(),
+      }))
       ptRenderChrome(); ptRenderList()
     }
 
@@ -4026,7 +4073,7 @@
     function ptAddCustom() {
       const el = document.getElementById('pt-custom'), text = (el?.value || '').trim()
       if (!text) return
-      ptState.basket.push({ key: 'custom:' + ptState.basket.length + ':' + text.slice(0, 12), framework: ptState.fw, term: ptState.term, milestone_id: null, description: text, cfe_level: null, category: ptFwLabel() })
+      ptState.basket.push(ptSelItem({ key: 'custom:' + ptState.basket.length + ':' + text.slice(0, 12), framework: ptState.fw, term: ptState.term, milestone_id: null, statement: text, cfe_level: null, category: ptFwLabel() }))
       ptState.custom = ''
       ptRenderChrome(); ptRenderBody()
     }
@@ -4060,7 +4107,7 @@
       const key = `csp:${tpl}:${ptState.term}`
       const idx = ptState.basket.findIndex(b => b.key === key)
       if (idx >= 0) ptState.basket.splice(idx, 1)
-      else ptState.basket.push({ key, framework: 'csp', term: ptState.term, milestone_id: null, description: tpl, cfe_level: null, category: ptState.cspCategory || 'CSP Outcome' })
+      else ptState.basket.push(ptSelItem({ key, framework: 'csp', term: ptState.term, milestone_id: null, statement: tpl, cfe_level: null, category: ptState.cspCategory || 'CSP Outcome' }))
       ptRenderChrome(); ptRenderBody()
     }
 
@@ -4076,18 +4123,84 @@
     function ptAddAhp() {
       const el = document.getElementById('pt-custom'), text = (el?.value || '').trim()
       if (!text || !ptState.ahpProfession) return
-      ptState.basket.push({ key: 'ahp:' + ptState.basket.length + ':' + text.slice(0, 12), framework: 'ahp', term: ptState.term, milestone_id: null, description: text, cfe_level: null, category: ptState.ahpProfession })
+      ptState.basket.push(ptSelItem({ key: 'ahp:' + ptState.basket.length + ':' + text.slice(0, 12), framework: 'ahp', term: ptState.term, milestone_id: null, statement: text, cfe_level: null, category: ptState.ahpProfession }))
       ptState.custom = ''
       ptRenderChrome(); ptRenderBody()
     }
 
-    async function ptSavePlan() {
+    // ══ "Add details" — fill every selected short-term target on one page ══
+    function ptOpenBatchDetails() {
       if (!ptState.basket.length) return
-      const btn = document.getElementById('pt-save-btn')
+      ptRenderBatch()
+      document.getElementById('modal-plan-details').style.display = 'flex'
+    }
+
+    // Persist whatever is currently typed on the details page back into the basket.
+    function ptSyncBatch() {
+      ptState.basket.forEach((b, i) => {
+        const g = (id) => { const el = document.getElementById(id); return el ? el.value : undefined }
+        const short = g(`bd-short-${i}`); if (short !== undefined) b.description = short.trim()
+        const lng = g(`bd-long-${i}`); if (lng !== undefined) b.long_term_target = lng.trim()
+        const exp = g(`bd-exp-${i}`); if (exp !== undefined) b.experiences = exp.trim()
+        const impl = g(`bd-impl-${i}`); if (impl !== undefined) b.implementation_detail = impl.trim()
+        const st = g(`bd-staff-${i}`); if (st !== undefined) b.staff = st.trim()
+      })
+    }
+
+    function ptRenderBatch() {
+      const teacher = ptTeacherName()
+      const many = ptState.basket.length > 1
+      const applyBtn = (field, i) => many ? `<button type="button" class="pt-applyall" onclick="ptApplyAll('${field}',${i})">↧ apply to all</button>` : ''
+      document.getElementById('pt-batch-body').innerHTML = ptState.basket.map((b, i) => `
+        <div class="pt-batch-card">
+          <div class="pt-batch-cardhead">
+            <span class="badge" style="background:${FW_COLOUR[b.framework] || '#64748b'};color:#fff;padding:2px 8px;border-radius:6px;font-size:0.68rem;font-weight:700">${FW_LABEL[b.framework] || b.framework}</span>
+            <span style="font-size:0.78rem;color:var(--ink-soft);font-weight:600">${b.term}${b.category ? ' · ' + escapeHtml(b.category) : ''}</span>
+            <button type="button" class="pt-batch-remove" onclick="ptRemoveBatch(${i})">Remove</button>
+          </div>
+          <label class="form-label">Short Term Target <span style="color:#dc2626">*</span></label>
+          <textarea class="form-input" id="bd-short-${i}" rows="2" placeholder="The specific, measurable step">${escapeHtml(b.description || '')}</textarea>
+          <div class="pt-batch-labelrow"><label class="form-label">Long Term Target</label>${applyBtn('long', i)}</div>
+          <div class="pt-fieldhint">The broad aim this step sits under (optional).</div>
+          <textarea class="form-input" id="bd-long-${i}" rows="2" placeholder="e.g. I can be successful in Maths and Numeracy (Number and Shape)">${escapeHtml(b.long_term_target || '')}</textarea>
+          <label class="form-label" style="margin-top:12px">Experiences</label>
+          <textarea class="form-input" id="bd-exp-${i}" rows="2" placeholder="Learning experiences / activities">${escapeHtml(b.experiences || '')}</textarea>
+          <label class="form-label" style="margin-top:12px">Implementation detail</label>
+          <textarea class="form-input" id="bd-impl-${i}" rows="2" placeholder="Guidance for staff / provision required">${escapeHtml(b.implementation_detail || '')}</textarea>
+          <div class="pt-batch-labelrow"><label class="form-label">Staff</label>${applyBtn('staff', i)}</div>
+          <input class="form-input" id="bd-staff-${i}" value="${escapeHtml(b.staff || teacher)}" placeholder="Who delivers this target">
+        </div>`).join('')
+      const n = ptState.basket.length
+      document.getElementById('pt-batch-count').textContent = `${n} target${n !== 1 ? 's' : ''}`
+    }
+
+    function ptApplyAll(kind, i) {
+      ptSyncBatch()
+      const src = ptState.basket[i]
+      const val = kind === 'long' ? src.long_term_target : src.staff
+      ptState.basket.forEach(b => { if (kind === 'long') b.long_term_target = val; else b.staff = val })
+      ptRenderBatch()
+    }
+
+    function ptRemoveBatch(i) {
+      ptSyncBatch()
+      ptState.basket.splice(i, 1)
+      ptRenderChrome()
+      if (!ptState.basket.length) { closeModal('modal-plan-details'); ptRenderBody(); return }
+      ptRenderBatch()
+    }
+
+    async function ptSaveBatch() {
+      ptSyncBatch()
+      const rows = ptState.basket
+        .filter(b => (b.description || '').trim())
+        .map(b => ({ pupil_id: currentPupil.id, framework: b.framework, category: b.category, description: b.description, long_term_target: b.long_term_target || null, experiences: b.experiences || null, implementation_detail: b.implementation_detail || null, staff: b.staff || null, cfe_level: b.cfe_level, status: 'active', planned_term: b.term, milestone_id: b.milestone_id }))
+      if (!rows.length) { alert('Keep at least one target with a Short Term Target.'); return }
+      const btn = document.getElementById('pt-batch-save')
       btn.disabled = true; btn.textContent = 'Saving…'
-      const rows = ptState.basket.map(b => ({ pupil_id: currentPupil.id, framework: b.framework, category: b.category, description: b.description, cfe_level: b.cfe_level, status: 'active', planned_term: b.term, milestone_id: b.milestone_id }))
       const res = await fetch(`${SUPABASE_URL}/rest/v1/targets`, { method: 'POST', headers: { ...headers(session.access_token), 'Prefer': 'return=minimal' }, body: JSON.stringify(rows) })
-      if (!res.ok) { alert('Could not save targets. Please try again.'); btn.disabled = false; btn.textContent = 'Save plan'; return }
+      if (!res.ok) { alert('Could not save targets. Please try again.'); btn.disabled = false; btn.textContent = 'Save all'; return }
+      closeModal('modal-plan-details')
       closeModal('modal-plan-targets')
       await loadHubData()
       showTab('targets')
