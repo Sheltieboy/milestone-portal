@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>First Sounds — Milestone Games</title>
+<link rel="stylesheet" href="shell.css?v=4">
+<style>
+  #stage{cursor:default;display:flex;flex-direction:column;background:#eef3f9}
+  .prompt{text-align:center;color:#14402b;padding:2.6vh 16px 1vh}
+  .prompt .big{font-size:12vh;font-weight:900;line-height:1;color:#185fa5}
+  .prompt .say{font-size:3.2vh;font-weight:700;margin-top:1vh}
+  .opts{flex:1;display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:center;padding:8px 16px 16px}
+  .opt{font-size:11vh;background:#fff;border:4px solid #e0f0e8;border-radius:22px;width:21vh;height:21vh;min-width:110px;min-height:110px;max-width:190px;max-height:190px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s,border-color .15s}
+  .opt .lbl{font-size:2.4vh;font-weight:700;color:#3a5244}
+  .opt:active{transform:scale(.96)}
+  .opt.wrong{animation:wob .4s}.opt.right{border-color:#2d8a5e;transform:scale(1.08)}
+  @keyframes wob{0%,100%{transform:translateX(0)}25%{transform:translateX(-12px)}75%{transform:translateX(12px)}}
+  .replay{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.9);border:none;border-radius:14px;padding:9px 16px;font-weight:700;font-size:14px;color:#185fa5;cursor:pointer;font-family:inherit;z-index:4}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar" id="bar"></div>
+  <div class="stage" id="stage">
+    <button class="snap" onclick="MGame.openEvidence()">📷 Snap evidence</button>
+    <div class="counter">Found: <span id="count">0</span></div>
+    <button class="replay" id="replay">🔊 Say again</button>
+    <div class="cue" id="cue"></div>
+    <div class="prompt"><div class="big" id="letter">b</div><div class="say">Which one starts with this sound?</div></div>
+    <div class="opts" id="opts"></div>
+  </div>
+</div>
+<div class="sheet" id="sheet"></div>
+<script src="shell.js?v=6"></script>
+<script src="evidence.js?v=5"></script>
+<script>
+(function(){
+  var WORDS=[['🍎','apple','a'],['🐻','bear','b'],['🐱','cat','c'],['🐶','dog','d'],['🥚','egg','e'],['🐟','fish','f'],['🐐','goat','g'],['🏠','house','h'],['🌙','moon','m'],['☀️','sun','s'],['🚌','bus','b'],['⚽','ball','b'],['🚗','car','c'],['🌸','flower','f'],['🐯','tiger','t'],['🌳','tree','t'],['🐷','pig','p'],['🖊️','pen','p'],['🛖','igloo','i'],['🥜','nut','n'],['🪺','nest','n']];
+  var SATPIN={s:1,a:1,t:1,p:1,i:1,n:1};
+  var letterEl=document.getElementById('letter'), opts=document.getElementById('opts'), countEl=document.getElementById('count');
+  var count=0, busy=false, current='b';
+  MGame.init({
+    title:'First Sounds',
+    framework:'CfE early literacy',
+    statement:'Hears and says the initial sound · matches sound to picture',
+    engagement:'Realisation · Persistence',
+    praise:'listening',
+    setup:[
+      {key:'sset', label:'Sounds', options:[{v:'satpin',label:'s a t p i n'},{v:'all',label:'All sounds'}], default:'satpin'},
+      {key:'field', label:'Choices', options:[{v:3,label:'3 pictures'},{v:2,label:'2 pictures'}], default:3},
+      {key:'voiceMode', label:'Sound voice', options:[{v:'auto',label:'My recording'},{v:'computer',label:'Computer'}], default:'auto'}
+    ],
+    onConfig:function(){ round(); }
+  });
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t; } return a; }
+  function sayLetter(){ MGame.say(current); }
+  document.getElementById('replay').addEventListener('click', sayLetter);
+  function round(){
+    busy=false; opts.innerHTML='';
+    var field=MGame.cfg('field')||3;
+    var allow = MGame.cfg('sset')==='all' ? WORDS : WORDS.filter(function(w){ return SATPIN[w[2]]; });
+    if(!allow.length) allow=WORDS;
+    var target=shuffle(allow.slice())[0]; current=target[2]; letterEl.textContent=current;
+    var distract=shuffle(WORDS.filter(function(w){ return w[2]!==current; })).slice(0,field-1);
+    var set=shuffle([target].concat(distract));
+    setTimeout(sayLetter, 300);
+    set.forEach(function(w){
+      var o=document.createElement('div'); o.className='opt'; o.innerHTML=w[0]+'<div class="lbl">'+w[1]+'</div>';
+      o.addEventListener('click', function(){
+        if(busy) return;
+        if(w===target){
+          busy=true; o.classList.add('right');
+          MGame.win({el:o, say:w[1], praiseKey:'listening', cue:'Yes! '+w[1]});
+          count++; countEl.textContent=count;
+          setTimeout(function(){ MGame.hideCue(); round(); }, 1500);
+        } else { o.classList.remove('wrong'); void o.offsetWidth; o.classList.add('wrong'); MGame.tone(200,.12,'sine'); }
+      });
+      opts.appendChild(o);
+    });
+  }
+  round();
+})();
+</script>
+<script>window.MEvidence&&MEvidence.init({title:"First Sounds",evidence:{framework:"cfe",statementMatch:"sound"},noteUnit:"sounds matched"});</script>
+</body>
+</html>

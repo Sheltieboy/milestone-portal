@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Milestone Progress Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root {
+    --green-deep:#1a5c3a; --green-mid:#2d8a5e; --green-light:#86efac; --green-pale:#e8f5ee;
+    --ink:#1a1a1a; --ink-soft:#64748b; --border:#e0f0e8;
+    --blue:#2563eb; --purple:#7c3aed; --amber:#d97706; --cyan:#0891b2;
+    --achieved:#2d8a5e; --progress:#d97706; --notstarted:#94a3b8;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',sans-serif;background:#f4faf6;color:var(--ink);font-size:14px}
+  a{color:inherit;text-decoration:none}
+
+  /* ── LOADING ── */
+  #loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:16px}
+  .spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--green-mid);border-radius:50%;animation:spin 0.8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #loading-msg{font-size:13px;color:var(--ink-soft);font-weight:500}
+
+  /* ── LAYOUT ── */
+  #app{max-width:920px;margin:0 auto;padding:0 20px 60px}
+
+  /* ── FILTER BAR ── */
+  #filter-bar{position:sticky;top:0;z-index:100;background:rgba(244,250,246,0.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:10px 0;margin:0 -20px;padding-left:20px;padding-right:20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .term-pills{display:flex;gap:5px}
+  .term-pill{padding:5px 13px;border-radius:20px;border:1px solid var(--border);background:#fff;font-size:12px;font-weight:600;color:var(--ink-soft);cursor:pointer;transition:all 0.15s}
+  .term-pill:hover{border-color:var(--green-mid);color:var(--green-mid)}
+  .term-pill.active{background:var(--green-deep);border-color:var(--green-deep);color:#fff}
+  .date-inputs{display:flex;align-items:center;gap:6px;margin-left:auto}
+  .date-inputs label{font-size:11px;color:var(--ink-soft);font-weight:600}
+  .date-inputs input{padding:4px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;color:var(--ink);background:#fff}
+  .print-btn{padding:6px 14px;border-radius:20px;background:var(--green-deep);color:#fff;font-size:12px;font-weight:700;cursor:pointer;border:none;margin-left:8px}
+
+  /* ── HEADER ── */
+  .report-header{background:var(--green-deep);border-radius:0 0 20px 20px;padding:32px 32px 28px;color:#fff;margin-bottom:24px}
+  .report-header-top{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+  .header-logo{width:38px;height:38px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center}
+  .header-logo span{font-size:18px;font-weight:900;color:var(--green-deep)}
+  .header-brand{font-size:16px;font-weight:700}
+  .header-sub{font-size:10px;color:var(--green-light);margin-top:1px}
+  .header-date{margin-left:auto;text-align:right;font-size:11px;color:var(--green-light)}
+  .report-header h1{font-size:28px;font-weight:900;margin-bottom:4px}
+  .report-header .pupil-line{font-size:14px;color:var(--green-light)}
+  .report-period{display:inline-block;margin-top:10px;background:rgba(255,255,255,0.15);border-radius:20px;padding:4px 14px;font-size:12px;font-weight:600;color:#fff}
+
+  /* ── SECTION ── */
+  .section{margin-bottom:28px}
+  .section-title{font-size:16px;font-weight:800;color:var(--ink);margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:8px}
+  .section-title .icon{font-size:18px}
+
+  /* ── AT A GLANCE ── */
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:600px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+  .stat-card{background:#fff;border-radius:14px;padding:16px 14px;border:1px solid var(--border);text-align:center}
+  .stat-num{font-size:32px;font-weight:900;line-height:1;margin-bottom:4px}
+  .stat-label{font-size:11px;color:var(--ink-soft);font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+  .stat-sub{font-size:11px;margin-top:4px;font-weight:500}
+
+  /* ── FRAMEWORK PROGRESS ── */
+  .fw-card{background:#fff;border-radius:14px;border:1px solid var(--border);margin-bottom:12px;overflow:hidden}
+  .fw-card-header{padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:12px;user-select:none}
+  .fw-card-header:hover{background:#fafffe}
+  .fw-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+  .fw-card-title{font-size:14px;font-weight:700;flex:1}
+  .fw-card-counts{font-size:12px;color:var(--ink-soft);display:flex;gap:10px;align-items:center}
+  .fw-chevron{font-size:12px;color:var(--ink-soft);transition:transform 0.2s}
+  .fw-card.open .fw-chevron{transform:rotate(180deg)}
+  .progress-bar-wrap{flex:1;height:6px;background:#eef2f7;border-radius:3px;overflow:hidden;min-width:80px}
+  .progress-bar{height:100%;display:flex}
+  .fw-card-body{padding:0 18px 16px;display:none}
+  .fw-card.open .fw-card-body{display:block}
+
+  .strand-group{margin-top:12px}
+  .strand-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--ink-soft);margin-bottom:6px}
+  .target-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid #f8fafc}
+  .target-row:last-child{border-bottom:none}
+  .target-status-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
+  .target-row-desc{font-size:13px;color:var(--ink);line-height:1.5;flex:1}
+  .target-row-meta{font-size:11px;color:var(--ink-soft);margin-top:2px}
+  .achieved-badge{font-size:10px;font-weight:700;color:var(--achieved);background:var(--green-pale);padding:2px 7px;border-radius:10px;white-space:nowrap}
+  .progress-badge{font-size:10px;font-weight:700;color:var(--progress);background:#fef3c7;padding:2px 7px;border-radius:10px;white-space:nowrap}
+  .notstarted-badge{font-size:10px;font-weight:700;color:var(--notstarted);background:#f1f5f9;padding:2px 7px;border-radius:10px;white-space:nowrap}
+
+  /* ── SUPPORT JOURNEY ── */
+  .journey-card{background:#fff;border-radius:14px;border:1px solid var(--border);padding:20px}
+  .support-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f8fafc}
+  .support-row:last-child{border-bottom:none}
+  .support-icon-label{display:flex;align-items:center;gap:7px;width:160px;flex-shrink:0}
+  .support-icon{font-size:16px}
+  .support-name{font-size:12px;font-weight:600;color:var(--ink)}
+  .support-bar-wrap{flex:1;height:8px;background:#eef2f7;border-radius:4px;overflow:hidden}
+  .support-bar{height:100%;border-radius:4px;transition:width 0.4s}
+  .support-meta{width:120px;text-align:right;font-size:11px;font-weight:600;flex-shrink:0}
+  .trend-reducing{color:var(--achieved)}
+  .trend-growing{color:var(--blue)}
+  .trend-stable{color:var(--ink-soft)}
+  .trend-highlight{display:inline-flex;align-items:center;gap:4px;background:var(--green-pale);color:var(--green-deep);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;margin-top:4px}
+
+  /* ── ENGAGEMENT JOURNEY (mini trend chart) ── */
+  .engagement-timeline{overflow-x:auto;padding:4px 0 8px}
+  .eng-chart{position:relative;padding:8px 8px 4px 44px;min-width:fit-content}
+  .eng-plot{
+    position:relative;height:130px;
+    border-left:1px dashed rgba(26,92,58,0.18);
+    border-bottom:1px dashed rgba(26,92,58,0.18);
+    background:linear-gradient(to top,rgba(45,138,94,0.04),rgba(45,138,94,0));
+    min-width:280px;
+  }
+  .eng-axis-y{
+    position:absolute;left:-44px;top:0;bottom:0;width:40px;
+    display:flex;flex-direction:column;justify-content:space-between;
+    font-size:9px;color:var(--ink-soft);text-align:right;
+    padding:2px 6px 2px 0;line-height:1.1;
+  }
+  .eng-axis-y span{font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
+  .eng-axis-y .axis-arrow{font-size:11px;opacity:0.55}
+  .eng-gridline{
+    position:absolute;left:0;right:0;height:1px;
+    background:rgba(26,92,58,0.06);pointer-events:none;
+  }
+  .eng-spark{
+    position:absolute;inset:0;width:100%;height:100%;
+    overflow:visible;pointer-events:none;
+  }
+  .eng-spark polyline{
+    fill:none;stroke:rgba(45,138,94,0.45);stroke-width:2;
+    stroke-linecap:round;stroke-linejoin:round;
+    vector-effect:non-scaling-stroke;
+  }
+  .eng-point{
+    position:absolute;transform:translate(-50%,-50%);
+    z-index:2;
+  }
+  .eng-dot{
+    width:28px;height:28px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:10px;font-weight:700;color:#fff;
+    box-shadow:0 2px 6px rgba(10,30,20,0.18),0 0 0 2px #fff;
+  }
+  .eng-axis-x{position:relative;height:46px;margin-top:6px;min-width:280px}
+  .eng-tick{
+    position:absolute;transform:translateX(-50%);
+    text-align:center;width:64px;
+  }
+  .eng-label{font-size:9px;font-weight:600;line-height:1.25;word-wrap:break-word}
+  .eng-date{font-size:9px;color:var(--ink-soft);line-height:1.3;margin-top:2px}
+  .eng-trendline{
+    position:absolute;left:0;right:0;height:1px;
+    background:linear-gradient(90deg,transparent,rgba(45,138,94,0.35),transparent);
+    pointer-events:none;
+  }
+  .eng-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+  .eng-legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-soft)}
+  .eng-legend-dot{width:10px;height:10px;border-radius:50%}
+
+  /* ── INLINE THUMBNAILS (under each target) ── */
+  .target-thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+  .thumb-wrap{cursor:pointer;border-radius:7px;overflow:hidden;border:1px solid var(--border);transition:transform 0.15s,box-shadow 0.15s;background:#eef2f7}
+  .thumb-wrap:hover{transform:scale(1.06);box-shadow:0 4px 14px rgba(26,92,58,0.15)}
+  .thumb-img{width:76px;height:60px;object-fit:cover;display:block}
+  .thumb-date{font-size:9px;color:var(--ink-soft);text-align:center;padding:2px 4px;background:#f8fafc;font-weight:500}
+
+  /* ── EVIDENCE GALLERY (notes + untagged photos) ── */
+  .gallery-filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+  .gallery-filters select{padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;color:var(--ink);background:#fff;cursor:pointer}
+  .gallery-filters label{font-size:12px;color:var(--ink-soft);font-weight:600}
+  .gallery-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media(max-width:600px){.gallery-grid{grid-template-columns:repeat(2,1fr)}}
+  .gallery-item{background:#fff;border-radius:12px;overflow:hidden;border:1px solid var(--border);cursor:pointer;transition:transform 0.15s,box-shadow 0.15s}
+  .gallery-item:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(26,92,58,0.10)}
+  .gallery-img{width:100%;height:160px;object-fit:cover;display:block}
+  .gallery-meta{padding:10px 12px}
+  .gallery-date{font-size:11px;font-weight:700;color:var(--green-mid);margin-bottom:5px}
+  .gallery-target{font-size:11px;color:var(--ink-soft);margin-bottom:6px;line-height:1.4}
+  .gallery-notes{font-size:12px;color:var(--ink);line-height:1.5;margin-bottom:6px}
+  .gallery-chips{display:flex;flex-wrap:wrap;gap:3px}
+  .gallery-chip{font-size:10px;background:#f1f5f9;color:var(--ink-soft);padding:2px 7px;border-radius:6px;font-weight:500}
+  .gallery-eng{font-size:10px;font-weight:600;padding:2px 7px;border-radius:6px}
+  /* Note-only evidence — compact list below photos */
+  .notes-list{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+  .note-item{background:#fff;border-radius:10px;padding:12px 14px;border:1px solid var(--border);border-left:3px solid var(--green-mid)}
+  .note-item-top{display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap}
+  .note-date{font-size:11px;font-weight:700;color:var(--green-mid)}
+  .note-target{font-size:11px;color:var(--ink-soft)}
+  .note-text{font-size:13px;color:var(--ink);line-height:1.6;margin-bottom:6px}
+  .gallery-empty{text-align:center;padding:32px;color:var(--ink-soft);font-size:13px}
+
+  /* ── LIGHTBOX ── */
+  #lightbox{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:1000;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:20px}
+  #lightbox.open{display:flex}
+  #lightbox img{max-width:min(90vw,800px);max-height:75vh;border-radius:12px;object-fit:contain}
+  #lightbox-caption{color:#fff;font-size:13px;text-align:center;max-width:600px;line-height:1.6}
+  #lightbox-close{position:absolute;top:16px;right:20px;color:#fff;font-size:24px;cursor:pointer;background:none;border:none;font-weight:700}
+
+  /* ── CELEBRATION BANNER ── */
+  .celebrate{background:linear-gradient(135deg,var(--green-deep),var(--green-mid));border-radius:14px;padding:20px 24px;color:#fff;margin-bottom:20px;display:flex;align-items:center;gap:16px}
+  .celebrate-icon{font-size:32px}
+  .celebrate-title{font-size:16px;font-weight:800;margin-bottom:2px}
+  .celebrate-sub{font-size:12px;color:var(--green-light)}
+
+  /* ── EMPTY ── */
+  .empty-note{text-align:center;padding:24px;color:var(--ink-soft);font-size:13px;background:#f8fafc;border-radius:10px}
+
+  /* ── PRINT ── */
+  @media print {
+    #filter-bar,.print-btn,#lightbox{display:none!important}
+    body{background:white;font-size:12px}
+    #app{max-width:100%;padding:0}
+    .report-header{border-radius:0;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+    .fw-card-body{display:block!important}
+    .fw-card{page-break-inside:avoid}
+    .gallery-item{page-break-inside:avoid}
+    .section{page-break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div id="loading-msg">Loading report…</div>
+</div>
+
+<div id="lightbox">
+  <button id="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="">
+  <div id="lightbox-caption"></div>
+</div>
+
+<div id="app" style="display:none">
+
+  <!-- FILTER BAR -->
+  <div id="filter-bar">
+    <div class="term-pills" id="term-pills"></div>
+    <div class="date-inputs">
+      <label>From</label>
+      <input type="date" id="date-from" onchange="applyFilters()">
+      <label>To</label>
+      <input type="date" id="date-to" onchange="applyFilters()">
+    </div>
+    <button class="print-btn" onclick="window.print()">🖨 Print / Save PDF</button>
+  </div>
+
+  <!-- HEADER -->
+  <div class="report-header">
+    <div class="report-header-top">
+      <div class="header-logo"><span>M</span></div>
+      <div><div class="header-brand">milestone</div><div class="header-sub">ASN evidence &amp; progress</div></div>
+      <div class="header-date" id="header-date"></div>
+    </div>
+    <h1 id="report-title">Progress Report</h1>
+    <div class="pupil-line" id="report-pupil"></div>
+    <div id="report-period" class="report-period"></div>
+  </div>
+
+  <div id="report-body">
+    <!-- filled by JS -->
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://kjbhnsikjymobudmlgmy.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqYmhuc2lranltb2J1ZG1sZ215Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NjY4NDgsImV4cCI6MjA5NDM0Mjg0OH0.65RefY6qK1ohQqRpjuFi75CNBip8P_Qy2owyKJKtWmI'
+
+const FW = {
+  milestones: { label:'Milestones', full:'Education Scotland Milestones', colour:'#2563eb', bg:'#dbeafe' },
+  cfe:        { label:'CfE',        full:'Curriculum for Excellence',      colour:'#2d8a5e', bg:'#d1fae5' },
+  shanarri:   { label:'SHANARRI',   full:'SHANARRI Wellbeing',             colour:'#7c3aed', bg:'#ede9fe' },
+  csp:        { label:'IEP/CSP',    full:'IEP / Co-ordinated Support Plan',colour:'#d97706', bg:'#fde9c8' },
+  ahp:        { label:'AHP',        full:'Allied Health Professional Inputs',colour:'#0891b2',bg:'#e0f2fe' },
+}
+const FW_ORDER = ['milestones','cfe','shanarri','csp','ahp']
+const TERMS = ['Term 1','Term 2','Term 3','Term 4']
+const TERM_SHORT = {'Term 1':'T1','Term 2':'T2','Term 3':'T3','Term 4':'T4'}
+const SUPPORT_RANK = { physical:1, gestural:2, visual:2, verbal:3, technology:3, independent:5 }
+const ENG_ORDER = ['encounters','notices','shows_interest','responds','focuses_attention','participates_actively','initiates','demonstrates_understanding','consolidates','extends']
+const ENG_COLOURS = { Experiences:'#64748b', 'Actively Engages':'#d97706', 'Applies & Extends':'#2d8a5e' }
+
+const api = (path, token) => fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+}).then(r => r.json())
+
+// ── STATE ──
+let state = {
+  pupil: null, targets: [], evidence: [], evidenceTargets: [],
+  supportTypes: [], engagementLevels: [], imageUrls: {},
+  activeTerm: 'all', dateFrom: null, dateTo: null, token: null
+}
+
+// ── AUTH ──
+// Two paths in:
+//  1. Portal users: session already in localStorage (key 'milestone-session').
+//  2. App users: the React Native WebView/browser passes the session in the
+//     URL fragment (#access_token=...&refresh_token=...&expires_at=...). The
+//     fragment never leaves the device — Safari/networks/servers never see it.
+//     We seed localStorage from it once, then strip the fragment so it's gone
+//     from history. From there on the existing flow is identical.
+function seedSessionFromHashIfPresent() {
+  try {
+    const hash = (location.hash || '').replace(/^#/, '')
+    if (!hash || !hash.includes('access_token=')) return
+    const p = new URLSearchParams(hash)
+    const access_token = p.get('access_token')
+    const refresh_token = p.get('refresh_token') || ''
+    const expires_at = parseInt(p.get('expires_at') || '0', 10)
+    if (!access_token || !expires_at) return
+    const session = {
+      access_token,
+      refresh_token,
+      expires_at,
+      user: { id: p.get('user_id') || '', email: p.get('email') || '' },
+    }
+    localStorage.setItem('milestone-session', JSON.stringify(session))
+    // Strip the fragment so the token doesn't sit in browser history.
+    history.replaceState(null, '', location.pathname + location.search)
+  } catch (e) { /* non-fatal */ }
+}
+seedSessionFromHashIfPresent()
+
+async function getSession() {
+  try {
+    const raw = localStorage.getItem('milestone-session')
+    if (raw) {
+      const d = JSON.parse(raw)
+      if (d?.access_token && d.expires_at && d.expires_at > Date.now() / 1000) return d
+    }
+  } catch {}
+  return null
+}
+
+// ── SUPABASE CLIENT (for Storage signed URLs) ──
+let sb = null
+
+// ── INIT ──
+async function init() {
+  const params = new URLSearchParams(location.search)
+  const pupilId = params.get('pupil_id')
+  if (!pupilId) { setMsg('No pupil selected. Open this report from the Milestone portal.'); return }
+
+  const session = await getSession()
+  if (!session) {
+    setMsg('Session expired — redirecting to portal…')
+    setTimeout(() => { window.location.href = 'index.html' }, 1500)
+    return
+  }
+  state.token = session.access_token
+
+  // Initialise Supabase JS client with the stored session (needed for Storage signed URLs)
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } })
+  await sb.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token || '' })
+
+  // Audit (IG read-logging): record that this teacher opened this pupil's report.
+  sb.rpc('rpc_log_access', {
+    p_action: 'view_report',
+    p_pupil_id: pupilId,
+    p_target_table: 'pupils',
+    p_target_id: pupilId,
+  }).then(() => {}, () => {})
+
+  setMsg('Fetching targets…')
+  const [pupil, targets, evidence, evidenceTargets, supportTypes, engagementLevels] = await Promise.all([
+    api(`pupils?id=eq.${pupilId}&select=*`, state.token).then(r => r[0]),
+    api(`targets?pupil_id=eq.${pupilId}&order=created_at`, state.token),
+    api(`evidence_records?pupil_id=eq.${pupilId}&order=created_at`, state.token),
+    api(`evidence_targets?select=*,framework_milestones(statement,framework,section,strand)&evidence_record_id=in.(select id from evidence_records where pupil_id eq ${pupilId})`, state.token)
+      .catch(() => []),
+    api('support_types?order=sort_order', state.token),
+    api('engagement_levels?order=sort_order', state.token),
+  ])
+
+  // Fetch evidenceTargets via evidence record ids (safer join)
+  const evIds = (evidence || []).map(e => e.id)
+  const evTargets = evIds.length
+    ? await api(`evidence_targets?select=*,framework_milestones(statement,framework,section,strand)&evidence_record_id=in.(${evIds.join(',')})`, state.token).catch(() => [])
+    : []
+
+  state.pupil = pupil
+  state.targets = targets || []
+  state.evidence = evidence || []
+  state.evidenceTargets = evTargets || []
+  state.supportTypes = supportTypes || []
+  state.engagementLevels = engagementLevels || []
+
+  // Fetch signed URLs in one batch using the Supabase JS client (same method the app uses)
+  setMsg('Loading evidence photos…')
+  const imgEvidence = state.evidence.filter(e => e.image_path)
+  if (imgEvidence.length) {
+    const { data: signedData } = await sb.storage
+      .from('evidence-media')
+      .createSignedUrls(imgEvidence.map(e => e.image_path), 300)  /* 5-min TTL: audit H6 */
+    signedData?.forEach(({ path, signedUrl }) => {
+      const ev = imgEvidence.find(e => e.image_path === path)
+      if (ev && signedUrl) state.imageUrls[ev.id] = signedUrl
+    })
+  }
+
+  document.getElementById('loading').style.display = 'none'
+  document.getElementById('app').style.display = 'block'
+  buildFilterBar()
+  render()
+}
+
+function setMsg(msg) { document.getElementById('loading-msg').textContent = msg }
+
+// ── FILTER BAR ──
+function buildFilterBar() {
+  const pills = document.getElementById('term-pills')
+  const allTermsUsed = ['all', ...TERMS.filter(t => state.targets.some(x => x.planned_term === t))]
+  pills.innerHTML = allTermsUsed.map(t => `
+    <button class="term-pill ${t === state.activeTerm ? 'active' : ''}" onclick="setTerm('${t}')">
+      ${t === 'all' ? 'All terms' : TERM_SHORT[t] || t}
+    </button>`).join('')
+}
+
+function setTerm(t) {
+  state.activeTerm = t
+  document.querySelectorAll('.term-pill').forEach(p => p.classList.toggle('active', p.textContent.trim() === (t === 'all' ? 'All terms' : TERM_SHORT[t] || t)))
+  render()
+}
+
+function applyFilters() {
+  state.dateFrom = document.getElementById('date-from').value || null
+  state.dateTo = document.getElementById('date-to').value || null
+  render()
+}
+
+// ── FILTERING ──
+function filteredTargets() {
+  return state.targets.filter(t => state.activeTerm === 'all' || t.planned_term === state.activeTerm)
+}
+
+function filteredEvidence() {
+  return state.evidence.filter(e => {
+    if (state.dateFrom && e.created_at < state.dateFrom) return false
+    if (state.dateTo && e.created_at > state.dateTo + 'T23:59:59') return false
+    if (state.activeTerm !== 'all') {
+      const linked = state.evidenceTargets.filter(et => et.evidence_record_id === e.id)
+      if (!linked.length) return false
+      const targetIds = linked.map(et => et.target_id).filter(Boolean)
+      const targets = state.targets.filter(t => targetIds.includes(t.id) && t.planned_term === state.activeTerm)
+      if (!targets.length) return false
+    }
+    return true
+  })
+}
+
+// ── RENDER ──
+function render() {
+  const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })
+  document.getElementById('header-date').textContent = today
+  document.getElementById('report-title').textContent = 'Progress Report'
+  document.getElementById('report-pupil').textContent = `Pupil A · ${state.pupil?.asn_category || ''}`
+  const periodLabel = state.activeTerm === 'all' ? 'Full Year 2025/26' : `${state.activeTerm} · 2025/26`
+  document.getElementById('report-period').textContent = periodLabel
+
+  const ts = filteredTargets()
+  const evs = filteredEvidence()
+  const achieved = ts.filter(t => t.status === 'achieved').length
+  const inProgress = ts.filter(t => t.status === 'in_progress').length
+  const notStarted = ts.filter(t => t.status === 'active').length
+  const pct = ts.length ? Math.round(achieved / ts.length * 100) : 0
+  const photoCount = evs.filter(e => state.imageUrls[e.id]).length
+
+  document.getElementById('report-body').innerHTML = `
+    ${ts.length > 0 && pct > 0 ? celebrationBanner(achieved, ts.length, pct) : ''}
+    <div class="section">
+      <div class="section-title"><span class="icon">📊</span>At a Glance</div>
+      ${renderStats(ts.length, pct, evs.length, photoCount, achieved, inProgress, notStarted)}
+    </div>
+    <div class="section">
+      <div class="section-title"><span class="icon">🎯</span>Progress by Framework</div>
+      ${renderFrameworks(ts)}
+    </div>
+    <div class="section">
+      <div class="section-title"><span class="icon">🤝</span>Support &amp; Engagement Journey</div>
+      ${renderJourney(evs)}
+    </div>
+    <div class="section">
+      <div class="section-title"><span class="icon">📝</span>Observation Notes &amp; Additional Evidence</div>
+      ${renderGallery(evs, ts)}
+    </div>
+    <div style="margin-top:40px;padding-top:20px;border-top:1px solid var(--border);text-align:center;color:#94a3b8;font-size:11px">
+      Generated by Milestone · ASN Evidence &amp; Progress · getmilestone.app
+    </div>
+  `
+}
+
+// ── CELEBRATION BANNER ──
+function celebrationBanner(achieved, total, pct) {
+  const msg = pct === 100 ? `All ${total} targets achieved — an outstanding term!`
+    : pct >= 75 ? `${achieved} of ${total} targets achieved — a brilliant term.`
+    : pct >= 50 ? `${achieved} of ${total} targets achieved — great progress being made.`
+    : achieved > 0 ? `${achieved} target${achieved > 1 ? 's' : ''} achieved — every step forward matters.`
+    : 'Targets are in progress — every effort is being recorded here.'
+  return `<div class="celebrate">
+    <div class="celebrate-icon">${pct >= 75 ? '🌟' : pct >= 50 ? '⭐' : '💚'}</div>
+    <div><div class="celebrate-title">${msg}</div>
+    <div class="celebrate-sub">This report captures every piece of progress, however small — because every step is significant.</div></div>
+  </div>`
+}
+
+// ── STATS ──
+function renderStats(total, pct, evCount, photoCount, achieved, inProgress, notStarted) {
+  const stat = (num, label, sub, colour) => `
+    <div class="stat-card">
+      <div class="stat-num" style="color:${colour}">${num}</div>
+      <div class="stat-label">${label}</div>
+      ${sub ? `<div class="stat-sub" style="color:${colour}">${sub}</div>` : ''}
+    </div>`
+  return `<div class="stats-grid">
+    ${stat(total, 'Targets', `${achieved} achieved · ${inProgress} in progress`, '#1a1a1a')}
+    ${stat(pct + '%', 'Achieved', pct > 0 ? '↑ Progress made' : 'Targets set', pct >= 50 ? 'var(--achieved)' : 'var(--progress)')}
+    ${stat(evCount, 'Evidence pieces', photoCount > 0 ? `${photoCount} with photos` : 'Notes & observations', '#0891b2')}
+    ${stat(FW_ORDER.filter(fw => state.targets.some(t => t.framework === fw)).length, 'Frameworks', 'Areas of focus', '#7c3aed')}
+  </div>`
+}
+
+// ── FRAMEWORKS ──
+function renderFrameworks(targets) {
+  if (!targets.length) return '<div class="empty-note">No targets for this period.</div>'
+  return FW_ORDER.map(fw => {
+    const fwTs = targets.filter(t => t.framework === fw)
+    if (!fwTs.length) return ''
+    const meta = FW[fw] || { label: fw, full: fw, colour: '#999', bg: '#f1f5f9' }
+    const ach = fwTs.filter(t => t.status === 'achieved').length
+    const prog = fwTs.filter(t => t.status === 'in_progress').length
+    const ns = fwTs.filter(t => t.status === 'active').length
+    const pct = Math.round(ach / fwTs.length * 100)
+
+    // Group by category/strand
+    const cats = [...new Set(fwTs.map(t => t.category).filter(Boolean))]
+    let bodyHtml = ''
+    if (cats.length > 1) {
+      bodyHtml = cats.map(cat => {
+        const catTs = fwTs.filter(t => t.category === cat)
+        return `<div class="strand-group">
+          <div class="strand-label">${cat}</div>
+          ${catTs.map(targetRow).join('')}
+        </div>`
+      }).join('') + fwTs.filter(t => !t.category).map(targetRow).join('')
+    } else {
+      bodyHtml = fwTs.map(targetRow).join('')
+    }
+
+    return `<div class="fw-card" id="fw-${fw}">
+      <div class="fw-card-header" onclick="toggleFw('${fw}')">
+        <span class="fw-dot" style="background:${meta.colour}"></span>
+        <span class="fw-card-title" style="color:${meta.colour}">${meta.full}</span>
+        <div class="fw-card-counts">
+          <span style="color:var(--achieved);font-weight:700">${ach}✓</span>
+          ${prog > 0 ? `<span style="color:var(--progress)">${prog}→</span>` : ''}
+          ${ns > 0 ? `<span style="color:var(--notstarted)">${ns}○</span>` : ''}
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar">
+            <div style="flex:${ach};background:${meta.colour}"></div>
+            <div style="flex:${prog};background:${meta.colour}55"></div>
+            <div style="flex:${ns};background:#eef2f7"></div>
+          </div>
+        </div>
+        <span style="font-size:12px;font-weight:700;color:${meta.colour};width:34px;text-align:right">${pct}%</span>
+        <span class="fw-chevron">▼</span>
+      </div>
+      <div class="fw-card-body">${bodyHtml}</div>
+    </div>`
+  }).join('')
+}
+
+function targetRow(t) {
+  const dot = t.status === 'achieved' ? 'var(--achieved)' : t.status === 'in_progress' ? 'var(--progress)' : '#cbd5e1'
+  const badge = t.status === 'achieved' ? `<span class="achieved-badge">✓ Achieved</span>`
+    : t.status === 'in_progress' ? `<span class="progress-badge">In progress</span>`
+    : `<span class="notstarted-badge">Not started</span>`
+
+  // Find evidence tagged to this target (by target_id or milestone_id)
+  const etLinks = state.evidenceTargets.filter(et =>
+    et.target_id === t.id || (t.milestone_id && et.milestone_id === t.milestone_id)
+  )
+  const evCount = etLinks.length
+  const achievedDate = t.achieved_at ? ` · Achieved ${new Date(t.achieved_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}` : ''
+
+  // Photos for this target — deduplicated, max 6
+  const seenEvIds = new Set()
+  const thumbItems = etLinks
+    .map(et => state.evidence.find(e => e.id === et.evidence_record_id))
+    .filter(ev => ev && state.imageUrls[ev.id] && !seenEvIds.has(ev.id) && seenEvIds.add(ev.id))
+    .slice(0, 6)
+    .map(ev => {
+      const url = state.imageUrls[ev.id]
+      const dateStr = new Date(ev.created_at).toLocaleDateString('en-GB', { day:'numeric', month:'short' })
+      const caption = `${(ev.notes||'').replace(/'/g,'').replace(/\n/g,' ')} · ${dateStr} · ${t.description.slice(0,60).replace(/'/g,'')}`
+      return `<div class="thumb-wrap" onclick="openLightbox('${url}','${caption}')">
+        <img class="thumb-img" src="${url}" alt="${dateStr}" loading="lazy">
+        <div class="thumb-date">${dateStr}</div>
+      </div>`
+    }).join('')
+
+  return `<div class="target-row">
+    <div class="target-status-dot" style="background:${dot}"></div>
+    <div style="flex:1">
+      <div class="target-row-desc">${t.description}</div>
+      <div class="target-row-meta">${t.planned_term || ''}${t.cfe_level ? ' · ' + t.cfe_level : ''}${achievedDate}${evCount > 0 ? ` · ${evCount} evidence piece${evCount > 1 ? 's' : ''}` : ''}</div>
+      ${thumbItems ? `<div class="target-thumbs">${thumbItems}</div>` : ''}
+    </div>
+    ${badge}
+  </div>`
+}
+
+function toggleFw(fw) {
+  document.getElementById('fw-' + fw).classList.toggle('open')
+}
+
+// ── SUPPORT JOURNEY ──
+function renderJourney(filteredEvs) {
+  const evIds = filteredEvs.map(e => e.id)
+  const etFiltered = state.evidenceTargets.filter(et => evIds.includes(et.evidence_record_id))
+
+  // Build sessions: one per evidence_record
+  const sessions = {}
+  for (const et of etFiltered) {
+    const ev = filteredEvs.find(e => e.id === et.evidence_record_id)
+    if (!ev) continue
+    if (!sessions[ev.id]) sessions[ev.id] = { date: ev.created_at, supportCodes: new Set(), engCode: null }
+    const s = sessions[ev.id]
+    const codes = et.support_types || (et.support_type ? [et.support_type] : [])
+    codes.forEach(c => s.supportCodes.add(c))
+    if (et.engagement_level) s.engCode = et.engagement_level
+  }
+  const sessionList = Object.values(sessions).sort((a, b) => new Date(a.date) - new Date(b.date))
+  if (!sessionList.length) return '<div class="empty-note">No tagged evidence for this period. Tag evidence to targets in the app to see the journey here.</div>'
+
+  return `<div class="journey-card">
+    ${renderSupportBars(sessionList)}
+    <div style="border-top:1px solid var(--border);margin:16px 0 12px"></div>
+    ${renderEngagementTimeline(sessionList)}
+  </div>`
+}
+
+function renderSupportBars(sessions) {
+  const n = sessions.length
+  const half = Math.floor(n / 2)
+  const supportOrder = Object.keys(SUPPORT_RANK).sort((a, b) => SUPPORT_RANK[a] - SUPPORT_RANK[b])
+  const stMeta = (code) => state.supportTypes.find(s => s.code === code) || { label: code, icon: '•' }
+
+  const rows = supportOrder.map(code => {
+    const count = sessions.filter(s => s.supportCodes.has(code)).length
+    if (!count && code !== 'independent') return ''
+    const pct = Math.round(count / n * 100)
+    const earlyCount = sessions.slice(0, half).filter(s => s.supportCodes.has(code)).length
+    const lateCount = sessions.slice(half).filter(s => s.supportCodes.has(code)).length
+    const earlyRate = half > 0 ? earlyCount / half : 0
+    const lateRate = (n - half) > 0 ? lateCount / (n - half) : 0
+    const delta = lateRate - earlyRate
+    const trend = Math.abs(delta) < 0.15 ? 'stable' : delta < 0 ? 'reducing' : 'increasing'
+    const st = stMeta(code)
+    const colour = code === 'independent' ? '#2563eb' : code === 'physical' ? '#ef4444' : code === 'gestural' ? '#f97316' : code === 'visual' ? '#8b5cf6' : code === 'verbal' ? '#d97706' : '#0891b2'
+    const trendHtml = trend === 'reducing'
+      ? `<span class="trend-reducing">↓ Reducing</span>`
+      : trend === 'increasing' && code === 'independent'
+      ? `<span class="trend-growing">↑ Growing ⭐</span>`
+      : trend === 'increasing' && code !== 'independent'
+      ? `<span style="color:#ef4444;font-weight:600;font-size:11px">↑ Increasing</span>`
+      : `<span class="trend-stable">→ Stable</span>`
+
+    return `<div class="support-row">
+      <div class="support-icon-label">
+        <span class="support-icon">${st.icon || '•'}</span>
+        <span class="support-name">${(st.label || code).replace(' support','').replace(' (No support)','').replace('Technology / AAC','AAC')}</span>
+      </div>
+      <div class="support-bar-wrap">
+        <div class="support-bar" style="width:${pct}%;background:${colour}"></div>
+      </div>
+      <div class="support-meta">
+        <div style="font-size:12px;color:var(--ink-soft)">${count} session${count !== 1 ? 's' : ''}</div>
+        ${trendHtml}
+      </div>
+    </div>`
+  }).filter(Boolean)
+
+  // Independence highlight
+  const indepSessions = sessions.filter(s => s.supportCodes.has('independent'))
+  const indepHighlight = indepSessions.length > 0
+    ? `<div class="trend-highlight">⭐ ${indepSessions.length} session${indepSessions.length > 1 ? 's' : ''} showing independent achievement</div>`
+    : ''
+
+  return `<div style="margin-bottom:4px;font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px">Support types used across ${sessions.length} session${sessions.length !== 1 ? 's' : ''}</div>
+  ${rows.join('')}
+  ${indepHighlight}`
+}
+
+function renderEngagementTimeline(sessions) {
+  const engWithLevel = sessions.filter(s => s.engCode)
+  if (!engWithLevel.length) return '<div style="font-size:12px;color:var(--ink-soft)">No engagement levels recorded for this period.</div>'
+
+  const engMeta = (code) => state.engagementLevels.find(e => e.code === code) || { label: code, broad_category: 'Other' }
+  const maxRank = ENG_ORDER.length - 1 // 9
+
+  // Compute point positions: x by index (evenly spaced), y by rank on continuum
+  const n = engWithLevel.length
+  const points = engWithLevel.map((s, i) => {
+    const em = engMeta(s.engCode)
+    const rank = ENG_ORDER.indexOf(s.engCode)
+    const colour = ENG_COLOURS[em.broad_category] || '#64748b'
+    // x: 6%..94% so dots don't touch edges; y: (maxRank-rank)/maxRank * 100 (top→bottom)
+    const xPct = n === 1 ? 50 : 6 + (i / (n - 1)) * 88
+    const yPct = rank < 0 ? 50 : (maxRank - rank) / maxRank * 100
+    return { em, rank, colour, xPct, yPct, date: s.date }
+  })
+
+  // Sparkline polyline (uses 0–100 viewBox so it scales)
+  const polyPts = points.map(p => `${p.xPct},${p.yPct}`).join(' ')
+
+  // Minimum width for the plot so labels don't crush together: 64px per dot, capped at parent width
+  const minWidth = Math.max(280, n * 64)
+
+  const dots = points.map((p, i) => `
+    <div class="eng-point" style="left:${p.xPct}%;top:${p.yPct}%">
+      <div class="eng-dot" style="background:${p.colour}" title="${p.em.label}">${i + 1}</div>
+    </div>`).join('')
+
+  const ticks = points.map(p => {
+    const dateStr = new Date(p.date).toLocaleDateString('en-GB', { day:'numeric', month:'short' })
+    return `<div class="eng-tick" style="left:${p.xPct}%">
+      <div class="eng-label" style="color:${p.colour}">${p.em.label}</div>
+      <div class="eng-date">${dateStr}</div>
+    </div>`
+  }).join('')
+
+  // Trend highlight
+  const first = points[0].rank
+  const last = points[points.length - 1].rank
+  const dir = last > first ? '↑ progressed' : last < first ? '↓ regressed' : '→ steady'
+  const trendStyle = last > first ? 'background:var(--green-pale);color:var(--green-deep)'
+    : last < first ? 'background:#fef3c7;color:#92400e'
+    : 'background:#f1f5f9;color:var(--ink-soft)'
+  const progNote = first >= 0 && last >= 0 && last !== first
+    ? `<div class="trend-highlight" style="margin-top:10px;${trendStyle}">${dir} from <strong>${points[0].em.label}</strong> to <strong>${points[points.length-1].em.label}</strong></div>`
+    : (first >= 0 ? `<div class="trend-highlight" style="margin-top:10px;${trendStyle}">${dir} at <strong>${points[0].em.label}</strong></div>` : '')
+
+  const legend = [...new Set(points.map(p => p.em.broad_category))].map(cat =>
+    `<div class="eng-legend-item"><div class="eng-legend-dot" style="background:${ENG_COLOURS[cat] || '#64748b'}"></div>${cat}</div>`
+  ).join('')
+
+  return `<div style="margin-bottom:8px;font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.5px">Engagement journey</div>
+  <div class="engagement-timeline">
+    <div class="eng-chart" style="min-width:${minWidth + 52}px">
+      <div class="eng-axis-y">
+        <span>High <span class="axis-arrow">↑</span></span>
+        <span><span class="axis-arrow">↓</span> Low</span>
+      </div>
+      <div class="eng-plot" style="min-width:${minWidth}px">
+        <svg class="eng-spark" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <polyline points="${polyPts}" />
+        </svg>
+        ${dots}
+      </div>
+      <div class="eng-axis-x" style="min-width:${minWidth}px">${ticks}</div>
+    </div>
+  </div>
+  <div class="eng-legend">${legend}</div>
+  ${progNote}`
+}
+
+// ── EVIDENCE GALLERY ──
+function renderGallery(evs, targets) {
+  if (!evs.length) return '<div class="empty-note">No evidence recorded for this period.</div>'
+
+  // Photos already shown inline under targets — only surface untagged ones here
+  const taggedPhotoIds = new Set(
+    state.evidenceTargets
+      .filter(et => et.target_id || et.milestone_id)
+      .map(et => et.evidence_record_id)
+  )
+  const photoEvs = evs.filter(e => state.imageUrls[e.id] && !taggedPhotoIds.has(e.id))
+  const noteEvs  = evs.filter(e => !state.imageUrls[e.id])
+  const photoCount = evs.filter(e => state.imageUrls[e.id]).length
+
+  const evMeta = (ev) => {
+    const etLinks = state.evidenceTargets.filter(et => et.evidence_record_id === ev.id)
+    const linkedTarget = targets.find(t => etLinks.some(et => et.target_id === t.id))
+      || targets.find(t => etLinks.some(et => et.milestone_id && t.milestone_id === et.milestone_id))
+    const supportCodes = [...new Set(etLinks.flatMap(et => et.support_types || (et.support_type ? [et.support_type] : [])))]
+    const engCode = etLinks.find(et => et.engagement_level)?.engagement_level
+    const engMeta = engCode ? state.engagementLevels.find(e => e.code === engCode) : null
+    const engColour = engMeta ? ENG_COLOURS[engMeta.broad_category] || '#64748b' : null
+    const chips = supportCodes.map(code => {
+      const st = state.supportTypes.find(s => s.code === code)
+      return st ? `<span class="gallery-chip">${st.icon} ${st.label.replace(' support','').replace(' (No support)','').replace('Technology / AAC','AAC')}</span>` : ''
+    }).join('')
+    return { linkedTarget, chips, engMeta, engColour }
+  }
+
+  // ── Photo cards ──
+  const photoCards = photoEvs.map(ev => {
+    const imgUrl = state.imageUrls[ev.id]
+    const { linkedTarget, chips, engMeta, engColour } = evMeta(ev)
+    const dateStr = new Date(ev.created_at).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })
+    const caption = `${(ev.notes||'').replace(/'/g,'').replace(/\n/g,' ')} · ${dateStr}${linkedTarget ? ' · ' + linkedTarget.description.slice(0,60).replace(/'/g,'') : ''}`
+    return `<div class="gallery-item" data-target="${linkedTarget?.id || ''}">
+      <img class="gallery-img" src="${imgUrl}" alt="Evidence" loading="lazy" onclick="openLightbox('${imgUrl}','${caption}')">
+      <div class="gallery-meta">
+        <div class="gallery-date">${dateStr}</div>
+        ${linkedTarget ? `<div class="gallery-target">${linkedTarget.description.slice(0,80)}${linkedTarget.description.length > 80 ? '…' : ''}</div>` : ''}
+        ${ev.notes ? `<div class="gallery-notes">${ev.notes}</div>` : ''}
+        <div class="gallery-chips">${chips}${engMeta ? `<span class="gallery-eng" style="background:${engColour}22;color:${engColour}">${engMeta.label}</span>` : ''}</div>
+      </div>
+    </div>`
+  }).join('')
+
+  // ── Note-only items ──
+  const noteItems = noteEvs.map(ev => {
+    const { linkedTarget, chips, engMeta, engColour } = evMeta(ev)
+    const dateStr = new Date(ev.created_at).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })
+    return `<div class="note-item" data-target="${linkedTarget?.id || ''}">
+      <div class="note-item-top">
+        <span class="note-date">${dateStr}</span>
+        ${linkedTarget ? `<span class="note-target">${linkedTarget.description.slice(0,70)}${linkedTarget.description.length > 70 ? '…' : ''}</span>` : ''}
+      </div>
+      ${ev.notes ? `<div class="note-text">${ev.notes}</div>` : ''}
+      <div class="gallery-chips">${chips}${engMeta ? `<span class="gallery-eng" style="background:${engColour}22;color:${engColour}">${engMeta.label}</span>` : ''}</div>
+    </div>`
+  }).join('')
+
+  const totalPhotos = photoCount
+  const totalNotes = noteEvs.length
+  const summary = [
+    totalPhotos > 0 ? `${totalPhotos} photo${totalPhotos !== 1 ? 's' : ''} shown inline above` : '',
+    totalNotes > 0 ? `${totalNotes} observation note${totalNotes !== 1 ? 's' : ''}` : '',
+    photoCards ? `${photoEvs.length} additional photo${photoEvs.length !== 1 ? 's' : ''} below` : '',
+  ].filter(Boolean).join(' · ')
+
+  return `
+  <div style="font-size:12px;color:var(--ink-soft);margin-bottom:14px">${summary}</div>
+  ${photoCards ? `<div class="gallery-grid">${photoCards}</div>` : ''}
+  ${noteItems
+    ? `<div class="notes-list" style="margin-top:${photoCards ? 20 : 0}px">${noteItems}</div>`
+    : (!photoCards ? '<div class="gallery-empty">All evidence for this period is shown inline above with its targets.</div>' : '')
+  }`
+}
+
+// ── LIGHTBOX ──
+function openLightbox(src, caption) {
+  document.getElementById('lightbox-img').src = src
+  document.getElementById('lightbox-caption').textContent = caption
+  document.getElementById('lightbox').classList.add('open')
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open')
+  document.getElementById('lightbox-img').src = ''
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox() })
+document.getElementById('lightbox').addEventListener('click', e => { if (e.target === e.currentTarget) closeLightbox() })
+
+// ── GO ──
+init().catch(err => setMsg('Error loading report: ' + err.message))
+</script>
+</body>
+</html>

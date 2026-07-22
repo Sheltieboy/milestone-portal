@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Choose It! — Milestone Games</title>
+<link rel="stylesheet" href="shell.css?v=4">
+<style>
+  .choices{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:4%;padding:6% 4% 4%}
+  .choice{flex:1;max-width:42%;height:78%;background:#fff;border:4px solid #e0f0e8;border-radius:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;cursor:pointer;transition:transform .25s, opacity .25s, border-color .2s;color:#14402b}
+  .choice:active{transform:scale(.97)}
+  .choice .emo{font-size:18vh;line-height:1}
+  .choice .nm{font-size:4.5vh;font-weight:800}
+  .choice.chosen{transform:scale(1.12);border-color:#2d8a5e;z-index:3}
+  .choice.faded{opacity:.25}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar" id="bar"></div>
+  <div class="stage" id="stage">
+    <button class="snap" onclick="MGame.openEvidence()">📷 Snap evidence</button>
+    <div class="counter">Choices: <span id="count">0</span></div>
+    <div class="cue" id="cue"></div>
+    <div class="choices" id="choices"></div>
+  </div>
+</div>
+<div class="sheet" id="sheet"></div>
+<script src="shell.js?v=6"></script>
+<script src="packs.js?v=2"></script>
+<script src="evidence.js?v=5"></script>
+<script>
+(function(){
+  var cat='animals', busy=false, count=0, picks={};
+  var box=document.getElementById('choices'), countEl=document.getElementById('count');
+  function cap(s){ return (s||'').charAt(0).toUpperCase()+(s||'').slice(1); }
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t; } return a; }
+
+  MGame.init({
+    title:'Choose It!',
+    framework:'Education Scotland Milestones · Communication',
+    statement:'Makes a choice between two items · communicates a preference',
+    engagement:'Initiation · Realisation',
+    praise:'choosing',
+    setup:[
+      {key:'topic', label:'Pictures', type:'select', options:MPacks.options(), default:MPacks.current()}
+    ],
+    tip:'<b>Offer the choice:</b> “What would you like?” — then <b>wait</b> for the pupil to look, reach, point or vocalise. Whatever they choose <i>happens</i> — there is no wrong answer.',
+    onConfig:function(){ cat=MGame.cfg('topic'); render(); }
+  });
+
+  // Evidence loop (Phase 1). Activates only when a teacher is signed in to the
+  // portal; otherwise the "Snap evidence" button keeps its default behaviour.
+  if (window.MEvidence) MEvidence.init({
+    title:'Choose It!',
+    evidence:{ framework:'milestones', statementMatch:'choice', strandMatch:'communication' },
+    getNotes:function(){
+      var made = Object.keys(picks).map(function(k){ return k+' ×'+picks[k]; }).join(', ');
+      return 'Choose It! · '+count+' choice'+(count===1?'':'s')+' made'+(made?' ('+made+')':'');
+    }
+  });
+
+  function render(){
+    busy=false; box.innerHTML='';
+    var two=shuffle(MPacks.get(cat).slice()).slice(0,2);
+    two.forEach(function(item,idx){
+      var c=document.createElement('div'); c.className='choice';
+      c.innerHTML='<div class="emo">'+item[0]+'</div><div class="nm">'+cap(item[1])+'</div>';
+      var freq=idx===0?520:300;
+      c.addEventListener('click', function(){ pick(c,item,freq); });
+      box.appendChild(c);
+    });
+  }
+  function pick(c,item,freq){
+    if(busy) return; busy=true;
+    [].forEach.call(box.children,function(x){ if(x!==c) x.classList.add('faded'); });
+    c.classList.add('chosen');
+    MGame.tone(freq,.5,'triangle');
+    MGame.win({el:c, say:item[1], praiseKey:'choosing', cue:'You chose '+cap(item[1])+'!'});
+    count++; countEl.textContent=count; picks[item[1]]=(picks[item[1]]||0)+1;
+    setTimeout(function(){ MGame.hideCue(); render(); }, 1800);
+  }
+  cat=MGame.cfg('topic')||'animals';
+  render();
+})();
+</script>
+</body>
+</html>

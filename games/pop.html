@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pop! — Milestone Games</title>
+<link rel="stylesheet" href="shell.css?v=4">
+<style>
+  #stage{background:#bfe7f7}
+  #stage.calm{background:#d4eaf2}
+  .bubble{position:absolute;border-radius:50%;background:rgba(255,255,255,.45);border:3px solid rgba(255,255,255,.8);cursor:pointer;transition:transform linear,opacity .25s;will-change:transform}
+  .bubble .hl{position:absolute;top:18%;left:22%;width:24%;height:24%;border-radius:50%;background:rgba(255,255,255,.85)}
+  .bubble.pop{transform:scale(1.5)!important;opacity:0;transition:transform .25s, opacity .25s}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar" id="bar"></div>
+  <div class="stage" id="stage">
+    <button class="snap" onclick="MGame.openEvidence()">📷 Snap evidence</button>
+    <div class="counter">Pops: <span id="count">0</span></div>
+  </div>
+</div>
+<div class="sheet" id="sheet"></div>
+<script src="shell.js?v=6"></script>
+<script src="evidence.js?v=5"></script>
+<script>
+(function(){
+  var COLOURS=['#ef6f8e','#7ec8f0','#5dcaa5','#f6c177','#a78bfa','#f0997b'];
+  var stage=document.getElementById('stage'), countEl=document.getElementById('count'), count=0, timer=null;
+
+  MGame.init({
+    title:'Pop!',
+    framework:'Education Scotland Milestones',
+    statement:'Tracks a moving object · reaches and touches · understands cause and effect',
+    engagement:'Exploration · Anticipation · Persistence',
+    praise:'cause',
+    setup:[
+      {key:'speed', label:'Bubble speed', options:[{v:'normal',label:'Normal'},{v:'slow',label:'Slow'},{v:'fast',label:'Fast'}], default:'normal'},
+      {key:'size', label:'Bubble size', options:[{v:'mixed',label:'Mixed'},{v:'big',label:'Big & easy'}], default:'mixed'}
+    ]
+  });
+
+  function spawn(){
+    var big=MGame.cfg('size')==='big'||MGame.calm;
+    var size=Math.round((big?100:70)+Math.random()*(big?50:60));
+    var b=document.createElement('div'); b.className='bubble';
+    b.style.width=size+'px'; b.style.height=size+'px';
+    b.style.background='rgba(255,255,255,.4)';
+    b.style.borderColor=COLOURS[Math.floor(Math.random()*COLOURS.length)];
+    b.style.left=Math.round(Math.random()*(stage.clientWidth-size))+'px';
+    b.style.bottom=(-size-10)+'px';
+    b.innerHTML='<span class="hl"></span>';
+    var sp=MGame.cfg('speed'); var base=MGame.calm?11:(sp==='slow'?11:sp==='fast'?5:7);
+    var dur=base+Math.random()*3;
+    b.style.transition='transform '+dur+'s linear, opacity .25s';
+    stage.appendChild(b);
+    requestAnimationFrame(function(){ b.style.transform='translateY(-'+(stage.clientHeight+size+30)+'px)'; });
+    var killer=setTimeout(function(){ b.remove(); }, dur*1000+200);
+    b.addEventListener('pointerdown', function(e){
+      e.stopPropagation();
+      if(b.classList.contains('pop')) return;
+      clearTimeout(killer); b.classList.add('pop');
+      MGame.tone(300+Math.random()*400,.18,'sine');
+      MGame.win({el:b, quiet:true, light:true});
+      count++; countEl.textContent=count;
+      setTimeout(function(){ b.remove(); }, 260);
+    });
+  }
+  function loop(){ spawn(); var sp=MGame.cfg('speed'); var d=MGame.calm?1500:(sp==='slow'?1500:sp==='fast'?550:850); timer=setTimeout(loop, d); }
+  loop();
+  MGame.onCalm(function(){ /* rate adjusts on next loop tick */ });
+})();
+</script>
+<script>window.MEvidence&&MEvidence.init({title:"Pop!",evidence:{framework:"milestones",statementMatch:"cause"},noteUnit:"pops"});</script>
+</body>
+</html>

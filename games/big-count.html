@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Big Count — Milestone Games</title>
+<link rel="stylesheet" href="shell.css?v=4">
+<style>
+  #stage{cursor:default;display:flex;flex-direction:column;background:#eef7f1}
+  .prompt{text-align:center;color:#14402b;font-size:4.4vh;font-weight:800;padding:2.6vh 16px 1vh}
+  .objs{flex:1;display:flex;flex-wrap:wrap;gap:3vh;align-items:center;justify-content:center;padding:16px}
+  .obj{position:relative;font-size:12vh;line-height:1;cursor:pointer;transition:transform .15s;filter:grayscale(.15)}
+  .obj:active{transform:scale(.94)}
+  .obj.done{filter:none;transform:scale(1.05)}
+  .obj .badge{position:absolute;top:-6px;right:-6px;width:5vh;height:5vh;min-width:30px;min-height:30px;border-radius:50%;background:#2d8a5e;color:#fff;display:none;align-items:center;justify-content:center;font-size:2.6vh;font-weight:800}
+  .obj.done .badge{display:flex}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar" id="bar"></div>
+  <div class="stage" id="stage">
+    <button class="snap" onclick="MGame.openEvidence()">📷 Snap evidence</button>
+    <div class="cue" id="cue"></div>
+    <div class="prompt" id="prompt">How many? Touch each one.</div>
+    <div class="objs" id="objs"></div>
+  </div>
+  <button class="bigbtn" id="next">New set ▸</button>
+</div>
+<div class="sheet" id="sheet"></div>
+<script src="shell.js?v=6"></script>
+<script src="packs.js?v=2"></script>
+<script src="evidence.js?v=5"></script>
+<script>
+(function(){
+  function pickThing(){ var items=MPacks.get(MGame.cfg('topic')); return items[Math.floor(Math.random()*items.length)][0]; }
+  var WORDS=['','one','two','three','four','five','six','seven','eight','nine','ten'];
+  var objs=document.getElementById('objs'), promptEl=document.getElementById('prompt');
+  var n=0, counted=0, busy=false, maxN=5;
+
+  MGame.init({
+    title:'Big Count',
+    framework:'CfE early numeracy · Education Scotland Milestones',
+    statement:'Counts with 1:1 correspondence · recognises small quantities',
+    engagement:'Persistence · Realisation',
+    praise:'counting',
+    setup:[
+      {key:'range', label:'Count to', options:[{v:5,label:'5'},{v:3,label:'3'},{v:10,label:'10'}], default:5},
+      {key:'topic', label:'Count these', type:'select', options:MPacks.options(), default:MPacks.current()}
+    ],
+    onConfig:function(){ maxN=MGame.cfg('range')||5; round(); }
+  });
+
+  function round(){
+    busy=false; counted=0; objs.innerHTML='';
+    n=1+Math.floor(Math.random()*maxN);
+    var thing=pickThing();
+    promptEl.textContent='How many? Touch each one.';
+    for(var i=0;i<n;i++){
+      var o=document.createElement('div'); o.className='obj';
+      o.innerHTML=thing+'<span class="badge"></span>';
+      o.addEventListener('click', function(){ tap(this); });
+      objs.appendChild(o);
+    }
+  }
+  function tap(o){
+    if(busy || o.classList.contains('done')) return;
+    o.classList.add('done'); counted++;
+    o.querySelector('.badge').textContent=counted;
+    MGame.tone(330+counted*60,.18,'sine'); MGame.say(WORDS[counted]||String(counted));
+    if(counted===n){
+      busy=true;
+      setTimeout(function(){
+        promptEl.textContent='There are '+n+'!';
+        MGame.win({say:(WORDS[n]||String(n)), praiseKey:'counting', cue:n+'!'});
+      }, 500);
+    }
+  }
+  document.getElementById('next').addEventListener('click', round);
+  round();
+})();
+</script>
+<script>window.MEvidence&&MEvidence.init({title:"Big Count",evidence:{framework:"milestones",statementMatch:"count"},getNotes:function(){return "Big Count · counting quantities with 1:1 correspondence";}});</script>
+</body>
+</html>

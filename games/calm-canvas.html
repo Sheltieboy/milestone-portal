@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calm Canvas — Milestone Games</title>
+<link rel="stylesheet" href="shell.css?v=4">
+<style>
+  #stage{cursor:crosshair;background:#0c1f2e;touch-action:none}
+  #stage.calm{background:#10242e}
+  #canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.4);font-size:3.2vh;font-weight:700;pointer-events:none;text-align:center;padding:0 10%}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar" id="bar"></div>
+  <div class="stage" id="stage">
+    <canvas id="canvas"></canvas>
+    <button class="snap" onclick="MGame.openEvidence()">📷 Snap evidence</button>
+    <button class="cornerbtn" id="clear">Clear</button>
+    <div class="hint" id="hint">Drag a finger to paint 🎨</div>
+  </div>
+</div>
+<div class="sheet" id="sheet"></div>
+<script src="shell.js?v=6"></script>
+<script src="evidence.js?v=5"></script>
+<script>
+(function(){
+  var stage=document.getElementById('stage'), cv=document.getElementById('canvas'), ctx=cv.getContext('2d');
+  var hint=document.getElementById('hint'), drawing=false, hue=200, last=null;
+  var BRIGHT=['#7ec8f0','#a78bfa','#f0997b','#5dcaa5','#f6c177','#ef93b1'];
+  var CALM=['#9fc7d8','#aebfd6','#bcd9c9','#cdbfe0','#d7c9b6'];
+
+  function fit(){ cv.width=stage.clientWidth*devicePixelRatio; cv.height=stage.clientHeight*devicePixelRatio; ctx.scale(devicePixelRatio,devicePixelRatio); }
+  fit(); window.addEventListener('resize', function(){ var img=ctx.getImageData(0,0,cv.width,cv.height); cv.width=stage.clientWidth*devicePixelRatio; cv.height=stage.clientHeight*devicePixelRatio; ctx.putImageData(img,0,0); });
+
+  function colour(){ var p = MGame.calm ? CALM : BRIGHT; return p[Math.floor(Math.random()*p.length)]; }
+  function blob(x,y,r,c){ ctx.globalAlpha=MGame.calm?0.10:0.16; ctx.fillStyle=c; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }
+
+  var curColour=colour(), lastTone=0;
+  function paint(x,y){
+    if(hint){ hint.remove(); hint=null; }
+    var r = MGame.calm ? 26 : 34;
+    blob(x,y,r,curColour);
+    if(last){ var dx=x-last.x, dy=y-last.y, d=Math.hypot(dx,dy), steps=Math.max(1,Math.floor(d/8));
+      for(var i=1;i<steps;i++){ blob(last.x+dx*i/steps, last.y+dy*i/steps, r*0.85, curColour); } }
+    last={x:x,y:y};
+    var now=Date.now(); if(now-lastTone>140){ MGame.tone(180+Math.random()*160, .5, 'sine'); lastTone=now; }
+  }
+  function pos(e){ var r=stage.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; }
+  stage.addEventListener('pointerdown', function(e){ if(e.target.closest('.snap')||e.target.closest('.cornerbtn')) return; drawing=true; curColour=colour(); last=null; var p=pos(e); paint(p.x,p.y); });
+  stage.addEventListener('pointermove', function(e){ if(!drawing) return; var p=pos(e); paint(p.x,p.y); });
+  window.addEventListener('pointerup', function(){ drawing=false; last=null; });
+  document.getElementById('clear').addEventListener('click', function(){ ctx.clearRect(0,0,cv.width,cv.height); });
+
+  MGame.init({
+    title:'Calm Canvas',
+    framework:'SHANARRI · Education Scotland Milestones',
+    statement:'Self-regulates · explores sensory materials · sustains calm attention',
+    engagement:'Exploration · Persistence',
+    reinforcer:false
+  });
+})();
+</script>
+<script>window.MEvidence&&MEvidence.init({title:"Calm Canvas",evidence:{framework:"milestones",statementMatch:"sensory"},getNotes:function(){return "Calm Canvas · sensory exploration and calm attention";}});</script>
+</body>
+</html>

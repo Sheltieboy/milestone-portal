@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Blend It! — Milestone Games</title>
+<link rel="stylesheet" href="shell.css?v=4">
+<style>
+  #stage{cursor:default;display:flex;flex-direction:column;background:#f1eefb}
+  .play{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.4vh;padding:8px}
+  .tiles{display:flex;align-items:center;justify-content:center;gap:3vh;flex-wrap:wrap;transition:gap .4s}
+  .tiles.blended{gap:.5vh}
+  .tile{width:19vh;height:23vh;min-width:88px;min-height:104px;max-width:172px;max-height:200px;background:#fff;border:5px solid #e0e0f4;border-radius:22px;display:flex;align-items:center;justify-content:center;font-size:13vh;font-weight:900;color:#5B3FA0;cursor:pointer;transition:transform .15s,border-color .15s,background .2s}
+  .tile:active{transform:scale(.96)}
+  .tile.lit{border-color:#6A4FB0;background:#efeafb;transform:translateY(-1vh)}
+  .reveal{display:flex;flex-direction:column;align-items:center;gap:.4vh;min-height:0}
+  .pic{font-size:15vh;line-height:1;opacity:0;transform:scale(.6);transition:opacity .4s,transform .4s}
+  .pic.show{opacity:1;transform:scale(1)}
+  .word{font-size:5vh;font-weight:800;color:#3a2a66;opacity:0;transition:opacity .3s;text-transform:lowercase}
+  .word.show{opacity:1}
+  .replay{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.9);border:none;border-radius:14px;padding:9px 16px;font-weight:700;font-size:14px;color:#5B3FA0;cursor:pointer;font-family:inherit;z-index:4}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar" id="bar"></div>
+  <div class="stage" id="stage">
+    <button class="snap" onclick="MGame.openEvidence()">📷 Snap evidence</button>
+    <div class="counter">Words: <span id="count">0</span></div>
+    <button class="replay" id="replay">🔊 Hear the sounds</button>
+    <div class="cue" id="cue"></div>
+    <div class="play">
+      <div class="tiles" id="tiles"></div>
+      <div class="reveal"><div class="pic" id="pic"></div><div class="word" id="word"></div></div>
+    </div>
+  </div>
+  <button class="bigbtn" id="act">Blend it ▸</button>
+</div>
+<div class="sheet" id="sheet"></div>
+<script src="shell.js?v=6"></script>
+<script src="evidence.js?v=5"></script>
+<script>
+(function(){
+  // Pure-sound spellings so the computer voice approximates each phoneme (not
+  // the letter name). Teachers can record their own clips for exact sounds.
+  var PH={a:'a',b:'buh',c:'cuh',d:'duh',e:'eh',f:'fff',g:'guh',h:'huh',i:'ih',j:'juh',k:'cuh',l:'lll',m:'mmm',n:'nnn',o:'o',p:'puh',r:'rrr',s:'sss',t:'tuh',u:'uh',v:'vvv',w:'wuh',x:'ks',y:'yuh',z:'zzz'};
+  var WORDS=[
+    ['🐱','cat',['c','a','t']],['🐶','dog',['d','o','g']],['🐷','pig',['p','i','g']],
+    ['☀️','sun',['s','u','n']],['🎩','hat',['h','a','t']],['🚌','bus',['b','u','s']],
+    ['🥤','cup',['c','u','p']],['🛏️','bed',['b','e','d']],['🦊','fox',['f','o','x']],
+    ['🐔','hen',['h','e','n']],['🐛','bug',['b','u','g']],['🚐','van',['v','a','n']],
+    ['🥅','net',['n','e','t']],['🖊️','pen',['p','e','n']],['📦','box',['b','o','x']],
+    ['🗺️','map',['m','a','p']],['🦵','leg',['l','e','g']],['🕸️','web',['w','e','b']],
+    ['🍯','jam',['j','a','m']],['🔟','ten',['t','e','n']]
+  ];
+  var tilesEl=document.getElementById('tiles'), picEl=document.getElementById('pic'),
+      wordEl=document.getElementById('word'), countEl=document.getElementById('count'),
+      act=document.getElementById('act');
+  var cur=null, blended=false, count=0;
+
+  MGame.init({
+    title:'Blend It!',
+    framework:'CfE early literacy',
+    statement:'Blends sounds to read a CVC word · hears sounds in sequence',
+    engagement:'Realisation · Persistence',
+    praise:'listening',
+    setup:[
+      {key:'vowel', label:'Word set', options:[{v:'all',label:'All CVC'},{v:'a',label:'a · cat, hat'},{v:'e',label:'e · hen, bed'},{v:'o',label:'o · dog, fox'},{v:'u',label:'u · sun, cup'}], default:'all'},
+      {key:'clue', label:'Picture clue', options:[{v:'on',label:'Show picture'},{v:'off',label:'Hide until blended'}], default:'on'},
+      {key:'voiceMode', label:'Sounds voice', options:[{v:'auto',label:'My recording'},{v:'computer',label:'Computer'}], default:'auto'}
+    ],
+    tip:'<b>My turn / your turn:</b> model the blend first — touch each sound, then sweep them together to read the word. Then hand it to the pupil.',
+    onConfig:function(){ round(); }
+  });
+
+  function sayPhoneme(l){ MGame.say(PH[l]||l); }
+  function hearSounds(){
+    var ls=cur[2], i=0;
+    (function next(){ if(i>=ls.length) return; sayPhoneme(ls[i]); i++; setTimeout(next, 720); })();
+  }
+  document.getElementById('replay').addEventListener('click', function(){ if(!blended) hearSounds(); else MGame.say(cur[1]); });
+
+  function pool(){
+    var v=MGame.cfg('vowel');
+    if(!v || v==='all') return WORDS;
+    var f=WORDS.filter(function(w){ return w[1].charAt(1)===v; });
+    return f.length ? f : WORDS;
+  }
+  function round(){
+    var P=pool(); cur=P[Math.floor(Math.random()*P.length)]; blended=false;
+    tilesEl.classList.remove('blended'); tilesEl.innerHTML='';
+    picEl.classList.remove('show'); picEl.textContent=cur[0];
+    wordEl.classList.remove('show'); wordEl.textContent=cur[1];
+    if(MGame.cfg('clue')==='on'){ picEl.classList.add('show'); }   // picture shown as a multisensory clue
+    act.textContent='Blend it ▸'; act.classList.remove('armed');
+    cur[2].forEach(function(l){
+      var t=document.createElement('div'); t.className='tile'; t.textContent=l;
+      t.addEventListener('click', function(){
+        if(blended) return;
+        t.classList.add('lit'); MGame.tone(440,.14,'sine'); sayPhoneme(l);
+      });
+      tilesEl.appendChild(t);
+    });
+    setTimeout(hearSounds, 350);
+  }
+  function blend(){
+    if(blended) { round(); return; }
+    blended=true;
+    [].forEach.call(tilesEl.children, function(t){ t.classList.add('lit'); });
+    tilesEl.classList.add('blended');
+    MGame.say(cur[1]);
+    setTimeout(function(){
+      picEl.classList.add('show'); wordEl.classList.add('show');
+      MGame.win({praiseKey:'listening', cue:cur[1]+'!'});
+      count++; countEl.textContent=count;
+      act.textContent='New word ▸'; act.classList.add('armed');
+    }, 500);
+  }
+  act.addEventListener('click', blend);
+  round();
+})();
+</script>
+<script>window.MEvidence&&MEvidence.init({title:"Blend It!",evidence:{framework:"cfe",statementMatch:"blend"},noteUnit:"words blended"});</script>
+</body>
+</html>

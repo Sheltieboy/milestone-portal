@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Yes or No — Milestone Games</title>
+<link rel="stylesheet" href="shell.css?v=4">
+<style>
+  #stage{cursor:default;display:flex;flex-direction:column;background:#eef7f1}
+  .q{text-align:center;color:#14402b;font-size:5vh;font-weight:800;padding:3vh 16px 1vh;min-height:9vh}
+  .qedit{display:flex;gap:8px;justify-content:center;padding:0 16px 6px;flex-wrap:wrap}
+  .qedit input{font-family:inherit;font-size:15px;padding:9px 13px;border:none;border-radius:12px;width:240px}
+  .qedit button{font-family:inherit;font-size:13px;font-weight:700;padding:9px 13px;border:none;border-radius:12px;background:rgba(0,0,0,.06);color:#14402b;cursor:pointer}
+  .ans{flex:1;display:flex;gap:4%;align-items:center;justify-content:center;padding:2% 4% 4%}
+  .a{flex:1;max-width:42%;height:80%;border-radius:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;cursor:pointer;color:#fff;transition:transform .2s, opacity .2s}
+  .a:active{transform:scale(.97)}
+  .a.yes{background:#2d8a5e}.a.no{background:#d8554a}
+  .a .ic{font-size:16vh;line-height:1}
+  .a .t{font-size:5vh;font-weight:800}
+  .a.faded{opacity:.25}.a.chosen{transform:scale(1.08)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar" id="bar"></div>
+  <div class="stage" id="stage">
+    <button class="snap" onclick="MGame.openEvidence()">📷 Snap evidence</button>
+    <div class="counter">Answers: <span id="count">0</span></div>
+    <div class="cue" id="cue"></div>
+    <div class="q" id="q">Do you want more?</div>
+    <div class="qedit">
+      <input id="qin" placeholder="Type a question…" autocomplete="off">
+      <button id="qset">Ask this</button>
+    </div>
+    <div class="ans">
+      <div class="a yes" id="yes"><div class="ic">✅</div><div class="t">Yes</div></div>
+      <div class="a no" id="no"><div class="ic">❌</div><div class="t">No</div></div>
+    </div>
+  </div>
+</div>
+<div class="sheet" id="sheet"></div>
+<script src="shell.js?v=6"></script>
+<script src="evidence.js?v=5"></script>
+<script>
+(function(){
+  var qEl=document.getElementById('q'), yes=document.getElementById('yes'), no=document.getElementById('no'),
+      countEl=document.getElementById('count'), busy=false, count=0;
+  MGame.init({
+    title:'Yes or No',
+    framework:'Education Scotland Milestones · Communication',
+    statement:'Responds to a question · indicates yes/no · communicates intentionally',
+    engagement:'Initiation · Realisation',
+    praise:'talking'
+  });
+  document.getElementById('qset').addEventListener('click', function(){
+    var v=document.getElementById('qin').value.trim(); if(v){ qEl.textContent=v; MGame.say(v); }
+  });
+  document.getElementById('qin').addEventListener('keydown', function(e){ if(e.key==='Enter') document.getElementById('qset').click(); });
+  function answer(which, el){
+    if(busy) return; busy=true;
+    (which==='Yes'?no:yes).classList.add('faded'); el.classList.add('chosen');
+    MGame.tone(which==='Yes'?580:300,.45,'triangle');
+    MGame.win({el:el, say:which, praiseKey:'talking', cue:'You said '+which+'!'});
+    count++; countEl.textContent=count;
+    setTimeout(function(){ MGame.hideCue(); yes.classList.remove('faded','chosen'); no.classList.remove('faded','chosen'); busy=false; }, 1700);
+  }
+  yes.addEventListener('click', function(){ answer('Yes', yes); });
+  no.addEventListener('click', function(){ answer('No', no); });
+})();
+</script>
+<script>window.MEvidence&&MEvidence.init({title:"Yes or No",evidence:{framework:"milestones",statementMatch:"question"},noteUnit:"responses"});</script>
+</body>
+</html>

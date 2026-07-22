@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Same &amp; Different — Milestone Games</title>
+<link rel="stylesheet" href="shell.css?v=4">
+<style>
+  #stage{cursor:default;display:flex;flex-direction:column;background:#eef7f1}
+  .prompt{text-align:center;color:#14402b;font-size:4.2vh;font-weight:800;padding:2.4vh 16px .6vh}
+  .target{display:flex;justify-content:center;padding:.5vh 0 1vh}
+  .target .item{font-size:11vh;background:#fff;border:4px solid #2d8a5e;border-radius:22px;width:16vh;height:16vh;min-width:96px;min-height:96px;display:flex;align-items:center;justify-content:center}
+  .opts{flex:1;display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:center;padding:8px 16px 16px}
+  .opt{font-size:11vh;background:#fff;border:4px solid #e0f0e8;border-radius:22px;width:20vh;height:20vh;min-width:110px;min-height:110px;max-width:190px;max-height:190px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s,border-color .15s}
+  .opt:active{transform:scale(.96)}
+  .opt.wrong{animation:wob .4s}.opt.right{border-color:#2d8a5e;transform:scale(1.08)}
+  @keyframes wob{0%,100%{transform:translateX(0)}25%{transform:translateX(-12px)}75%{transform:translateX(12px)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar" id="bar"></div>
+  <div class="stage" id="stage">
+    <button class="snap" onclick="MGame.openEvidence()">📷 Snap evidence</button>
+    <div class="counter">Matched: <span id="count">0</span></div>
+    <div class="cue" id="cue"></div>
+    <div class="prompt">Find the one that is the same</div>
+    <div class="target"><div class="item" id="target"></div></div>
+    <div class="opts" id="opts"></div>
+  </div>
+</div>
+<div class="sheet" id="sheet"></div>
+<script src="shell.js?v=6"></script>
+<script src="packs.js?v=2"></script>
+<script src="evidence.js?v=5"></script>
+<script>
+(function(){
+  function itemPool(){ return MPacks.get(MGame.cfg('topic')).map(function(it){ return it[0]; }); }
+  var targetEl=document.getElementById('target'), opts=document.getElementById('opts'), countEl=document.getElementById('count');
+  var count=0, busy=false;
+  MGame.init({
+    title:'Same & Different',
+    framework:'CfE early · Education Scotland Milestones',
+    statement:'Matches identical objects · discriminates same from different',
+    engagement:'Realisation · Persistence',
+    praise:'looking',
+    setup:[
+      {key:'field', label:'Choices', options:[{v:3,label:'3'},{v:2,label:'2'},{v:4,label:'4'}], default:3},
+      {key:'topic', label:'Topic', type:'select', options:MPacks.options(), default:MPacks.current()}
+    ],
+    onConfig:function(){ round(); }
+  });
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t; } return a; }
+  function round(){
+    busy=false; opts.innerHTML='';
+    var field=MGame.cfg('field')||3;
+    var p=shuffle(itemPool().slice());
+    var same=p[0], distract=p.slice(1,field);
+    targetEl.textContent=same;
+    var set=shuffle([same].concat(distract));
+    set.forEach(function(it){
+      var o=document.createElement('div'); o.className='opt'; o.textContent=it;
+      o.addEventListener('click', function(){
+        if(busy) return;
+        if(it===same){
+          busy=true; o.classList.add('right');
+          MGame.win({el:o, say:'Same', praiseKey:'looking', cue:'Same!'});
+          count++; countEl.textContent=count;
+          setTimeout(function(){ MGame.hideCue(); round(); }, 1400);
+        } else { o.classList.remove('wrong'); void o.offsetWidth; o.classList.add('wrong'); MGame.tone(200,.12,'sine'); }
+      });
+      opts.appendChild(o);
+    });
+  }
+  round();
+})();
+</script>
+<script>window.MEvidence&&MEvidence.init({title:"Same & Different",evidence:{framework:"milestones",statementMatch:"same"},noteUnit:"matches"});</script>
+</body>
+</html>

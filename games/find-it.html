@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Find It · Match It — Milestone Games</title>
+<link rel="stylesheet" href="shell.css?v=4">
+<style>
+  #stage{cursor:default;display:flex;flex-direction:column;background:#eef7f1}
+  #stage.calm{background:#eef3f0}
+  .prompt{text-align:center;color:#14402b;font-size:5vh;font-weight:800;padding:3vh 16px 1vh}
+  .opts{flex:1;display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:center;padding:16px}
+  .opt{background:#fff;border:4px solid #e0f0e8;border-radius:24px;width:24vh;height:24vh;max-width:200px;max-height:200px;min-width:120px;min-height:120px;display:flex;align-items:center;justify-content:center;font-size:13vh;cursor:pointer;transition:transform .15s, border-color .15s}
+  .opt:active{transform:scale(.96)}
+  .opt.wrong{animation:wob .4s}
+  .opt.right{border-color:#2d8a5e;transform:scale(1.1)}
+  @keyframes wob{0%,100%{transform:translateX(0)}25%{transform:translateX(-12px)}75%{transform:translateX(12px)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar" id="bar"></div>
+  <div class="stage" id="stage">
+    <button class="snap" onclick="MGame.openEvidence()">📷 Snap evidence</button>
+    <div class="counter">Found: <span id="count">0</span></div>
+    <div class="cue" id="cue"></div>
+    <div class="prompt" id="prompt">Find the…</div>
+    <div class="opts" id="opts"></div>
+  </div>
+</div>
+<div class="sheet" id="sheet"></div>
+<script src="shell.js?v=6"></script>
+<script src="packs.js?v=2"></script>
+<script src="evidence.js?v=5"></script>
+<script>
+(function(){
+  function itemPool(){ return MPacks.get(MGame.cfg('topic')); }
+  var promptEl=document.getElementById('prompt'), opts=document.getElementById('opts'), countEl=document.getElementById('count');
+  var count=0, busy=false;
+
+  MGame.init({
+    title:'Find It · Match It',
+    framework:'CfE early · Education Scotland Milestones',
+    statement:'Selects a named object · understands single words · matches items',
+    engagement:'Realisation · Persistence',
+    praise:'looking',
+    setup:[
+      {key:'field', label:'Choices', options:[{v:3,label:'3'},{v:2,label:'2'},{v:4,label:'4'}], default:3},
+      {key:'topic', label:'Topic', type:'select', options:MPacks.options(), default:MPacks.current()}
+    ],
+    onConfig:function(){ round(); }
+  });
+
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i];a[i]=a[j];a[j]=t; } return a; }
+  function round(){
+    busy=false; opts.innerHTML='';
+    var field=MGame.cfg('field')||3;
+    var pool=shuffle(itemPool().slice()).slice(0,field);
+    var target=pool[Math.floor(Math.random()*pool.length)];
+    promptEl.textContent='Find the '+target[1];
+    MGame.say(target[1]);
+    pool.forEach(function(it){
+      var o=document.createElement('div'); o.className='opt'; o.textContent=it[0];
+      o.addEventListener('click', function(){
+        if(busy) return;
+        if(it===target){
+          busy=true; o.classList.add('right');
+          MGame.win({el:o, say:target[1], praiseKey:'looking'});
+          count++; countEl.textContent=count;
+          setTimeout(function(){ MGame.hideCue(); round(); }, 1500);
+        } else {
+          o.classList.remove('wrong'); void o.offsetWidth; o.classList.add('wrong'); MGame.tone(200,.12,'sine');
+        }
+      });
+      opts.appendChild(o);
+    });
+  }
+  round();
+})();
+</script>
+<script>window.MEvidence&&MEvidence.init({title:"Find It · Match It",evidence:{framework:"milestones",statementMatch:"match"},noteUnit:"correct"});</script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+:root{ --green-deep:#1a5c3a; --green-mid:#2d8a5e; --green-light:#86efac; --ink:#1a1a1a; --ink-soft:#5f7a6c; --border:#e0f0e8; }
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;background:#0b3a23;overflow:hidden;color:#fff;-webkit-font-smoothing:antialiased}
+.app{height:100%;display:flex;flex-direction:column}
+
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:var(--green-deep);z-index:5;flex-wrap:wrap}
+.bar a,.bar button{font-family:inherit;color:#fff;background:rgba(255,255,255,.12);border:none;border-radius:20px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.bar .title{font-weight:800;font-size:16px;background:none;padding:0}
+.bar .right{display:flex;gap:8px;flex-wrap:wrap;background:none;padding:0}
+.bar button.on{background:var(--green-light);color:var(--green-deep)}
+.bar select{font-family:inherit;font-size:14px;font-weight:600;border:none;border-radius:20px;padding:9px 12px;background:rgba(255,255,255,.12);color:#fff;cursor:pointer}
+.bar select option{color:#1a1a1a}
+
+.stage{flex:1;position:relative;overflow:hidden;background:#bfe3f7;transition:background .6s;cursor:pointer}
+.stage.calm{background:#dfeef4}
+
+.counter{position:absolute;top:14px;right:16px;background:rgba(255,255,255,.85);color:var(--green-deep);border-radius:14px;padding:8px 14px;font-weight:800;font-size:15px;z-index:4}
+.snap{position:absolute;top:14px;left:16px;background:rgba(255,255,255,.9);color:var(--green-deep);border:none;border-radius:14px;padding:9px 14px;font-weight:700;font-size:14px;cursor:pointer;z-index:4;font-family:inherit}
+.cornerbtn{position:absolute;bottom:14px;right:16px;background:rgba(255,255,255,.9);color:var(--green-deep);border:none;border-radius:14px;padding:10px 16px;font-weight:700;font-size:14px;cursor:pointer;z-index:4;font-family:inherit}
+
+.bigbtn{flex:0 0 auto;border:none;width:100%;min-height:16vh;background:var(--green-mid);color:#fff;font-size:5.5vh;font-weight:800;letter-spacing:1px;cursor:pointer;font-family:inherit}
+.bigbtn.armed{background:#1a5c3a}
+
+.cue{position:absolute;top:7%;left:0;right:0;text-align:center;font-size:6.5vw;font-weight:800;color:#0b3a23;text-shadow:0 2px 0 rgba(255,255,255,.5);opacity:0;transition:opacity .15s, transform .15s;pointer-events:none;z-index:5;padding:0 12px}
+.cue.show{opacity:1}
+.cue.win{font-size:8.5vw;font-weight:900;animation:cuepop .45s ease-out}
+.cue.mega{font-size:12.5vw;color:#b8460a;text-shadow:0 3px 0 rgba(255,255,255,.6)}
+@keyframes cuepop{0%{transform:scale(.5)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+
+/* reinforcer engine: flash, screen-shake, charge-to-MEGA meter */
+.ms-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:6}
+.stage.ms-shake{animation:ms-shake .4s}
+@keyframes ms-shake{0%,100%{transform:translate(0,0)}20%{transform:translate(-8px,4px)}40%{transform:translate(7px,-4px)}60%{transform:translate(-5px,3px)}80%{transform:translate(4px,-2px)}}
+.ms-charge{position:absolute;top:52px;right:16px;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.8);border-radius:12px;padding:5px 9px;z-index:4}
+.ms-charge .lab{font-size:10px;font-weight:800;color:#8a5a00;text-transform:uppercase;letter-spacing:.4px}
+.ms-pip{width:12px;height:12px;border-radius:50%;background:#e3e8ea;border:2px solid #cfd6d9;transition:transform .2s,background .2s}
+.ms-pip.on{background:#ffce3a;border-color:#e8b200;transform:scale(1.15)}
+.bar button.accent{background:#ffce3a;color:#5a4500}
+
+/* teacher set-up panel */
+.ms-ov{position:absolute;inset:0;background:rgba(11,58,35,.55);display:none;align-items:center;justify-content:center;padding:18px;z-index:10}
+.ms-ov.open{display:flex}
+.ms-ov .panel{max-height:92vh;overflow:auto}
+.ms-name{width:100%;border:1.5px solid var(--border);border-radius:12px;padding:11px;font-size:15px;font-family:inherit;margin-top:2px;color:#1a1a1a}
+.ms-sel{width:100%;border:1.5px solid var(--border);border-radius:12px;padding:11px;font-size:15px;font-family:inherit;margin-top:2px;color:#1a1a1a;background:#fff;cursor:pointer}
+.ms-opts{display:flex;flex-wrap:wrap;gap:8px}
+.ms-opt{font-size:14px;border:1.5px solid var(--border);border-radius:14px;padding:9px 13px;cursor:pointer;background:#fff;font-family:inherit;color:#1a1a1a}
+.ms-opt.sel{border-color:var(--green-mid);background:#e8f5ee;color:var(--green-deep);font-weight:700}
+.ms-tip{background:#f6faf7;border:1px dashed var(--border);border-radius:12px;padding:11px 13px;font-size:13px;color:#3a5244;line-height:1.5;margin-top:14px}
+.ms-tip b{color:var(--green-deep)}
+
+.sheet{position:absolute;inset:0;background:rgba(11,58,35,.55);display:none;align-items:center;justify-content:center;padding:20px;z-index:9}
+.sheet.open{display:flex}
+.panel{background:#fff;color:#1a1a1a;border-radius:20px;max-width:440px;width:100%;padding:22px}
+.panel h3{font-size:19px;color:var(--green-deep)}
+.panel .sub{font-size:13px;color:var(--ink-soft);margin:4px 0 16px}
+.panel .row{font-size:14px;padding:9px 0;border-bottom:1px solid var(--border);display:flex;gap:8px}
+.panel .row b{color:var(--green-deep);min-width:86px;flex-shrink:0}
+.panel .lbl{font-size:12px;font-weight:700;color:var(--green-mid);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 8px}
+.supports{display:flex;flex-wrap:wrap;gap:7px}
+.sup{font-size:13px;border:1.5px solid var(--border);border-radius:20px;padding:8px 13px;cursor:pointer;background:#fff;font-family:inherit;color:#1a1a1a}
+.sup.sel{border-color:var(--green-mid);background:#e8f5ee;color:var(--green-deep);font-weight:700}
+.panel .actions{display:flex;gap:10px;margin-top:18px}
+.panel a.primary,.panel button.primary{flex:1;text-align:center;background:var(--green-mid);color:#fff;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none}
+.panel button.ghost{background:#fff;border:1px solid var(--border);border-radius:12px;padding:13px 16px;font-size:15px;cursor:pointer;font-family:inherit;color:var(--ink-soft)}

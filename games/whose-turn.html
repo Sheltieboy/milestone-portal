@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Whose Turn? — Milestone Games</title>
+<link rel="stylesheet" href="shell.css?v=4">
+<style>
+  #stage{cursor:default;display:flex;flex-direction:column}
+  .setup{display:flex;gap:8px;padding:12px 16px 6px;flex-wrap:wrap;align-items:center;justify-content:center}
+  .setup input{font-family:inherit;font-size:16px;padding:10px 14px;border:none;border-radius:12px;width:200px}
+  .setup button{font-family:inherit;font-size:14px;font-weight:700;padding:10px 14px;border:none;border-radius:12px;background:rgba(255,255,255,.9);color:#14402b;cursor:pointer}
+  .tiles{flex:1;display:flex;flex-wrap:wrap;gap:14px;align-content:center;justify-content:center;padding:16px}
+  .tile{background:#fff;color:#14402b;border:4px solid #fff;border-radius:20px;padding:18px 22px;min-width:130px;text-align:center;font-size:3vh;font-weight:800;display:flex;flex-direction:column;align-items:center;gap:8px;transition:transform .12s, border-color .12s}
+  .tile .av{width:54px;height:54px;border-radius:50%;background:#d1fae5;color:#1a5c3a;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800}
+  .tile.hl{border-color:#d4af37;transform:scale(1.06)}
+  .tile.win{border-color:#2d8a5e;transform:scale(1.14);box-shadow:0 0 0 6px rgba(45,138,94,.25)}
+  .tile .rm{font-size:12px;color:#9bb0a4;cursor:pointer;font-weight:600}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar" id="bar"></div>
+  <div class="stage" id="stage">
+    <button class="snap" onclick="MGame.openEvidence()">📷 Snap evidence</button>
+    <div class="cue" id="cue"></div>
+    <div class="setup">
+      <input id="name" placeholder="Add a name…" autocomplete="off">
+      <button id="add">+ Add</button>
+      <button id="reset">Reset class</button>
+    </div>
+    <div class="tiles" id="tiles"></div>
+  </div>
+  <button class="bigbtn" id="spin">Spin to choose ▸</button>
+</div>
+<div class="sheet" id="sheet"></div>
+<script src="shell.js?v=6"></script>
+<script src="evidence.js?v=5"></script>
+<script>
+(function(){
+  var KEY='milestone.whoseturn.names';
+  var names=[];
+  try{ names=JSON.parse(localStorage.getItem(KEY)||'[]'); }catch(e){ names=[]; }
+  if(!names.length) names=['Lewis','Ava','Rory','Shannon'];
+  var tiles=document.getElementById('tiles'), spin=document.getElementById('spin'), busy=false;
+
+  MGame.init({
+    title:'Whose Turn?',
+    framework:'Education Scotland Milestones · SHANARRI',
+    statement:'Takes a turn in an interaction · responds to own name · shares attention',
+    engagement:'Turn-taking · Initiation',
+    praise:'waiting'
+  });
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(names)); }catch(e){} }
+  function render(){
+    tiles.innerHTML='';
+    names.forEach(function(n,i){
+      var t=document.createElement('div'); t.className='tile';
+      t.innerHTML='<div class="av">'+n.charAt(0).toUpperCase()+'</div><div>'+n+'</div><div class="rm">remove</div>';
+      t.querySelector('.rm').addEventListener('click', function(){ names.splice(i,1); save(); render(); });
+      tiles.appendChild(t);
+    });
+  }
+  document.getElementById('add').addEventListener('click', function(){
+    var v=document.getElementById('name').value.trim(); if(!v) return;
+    names.push(v); document.getElementById('name').value=''; save(); render();
+  });
+  document.getElementById('name').addEventListener('keydown', function(e){ if(e.key==='Enter') document.getElementById('add').click(); });
+  document.getElementById('reset').addEventListener('click', function(){ names=[]; save(); render(); });
+
+  spin.addEventListener('click', function(){
+    var els=tiles.querySelectorAll('.tile'); if(els.length<2 || busy) return;
+    busy=true; spin.disabled=true; MGame.hideCue();
+    [].forEach.call(els,function(e){ e.classList.remove('win'); });
+    var target=Math.floor(Math.random()*els.length), idx=0, ticks=0, total=els.length*2+target+ (5+Math.floor(Math.random()*els.length));
+    function step(){
+      [].forEach.call(els,function(e){ e.classList.remove('hl'); });
+      els[idx%els.length].classList.add('hl');
+      MGame.tone(360+ (idx%els.length)*30,.07,'square');
+      ticks++; idx++;
+      if(ticks>=total){ land(els); return; }
+      var delay = 70 + Math.pow(ticks/total,3)*340;
+      setTimeout(step, delay);
+    }
+    function land(els){
+      [].forEach.call(els,function(e){ e.classList.remove('hl'); });
+      var w=els[(idx-1)%els.length]; w.classList.add('win');
+      var nm=names[(idx-1)%els.length];
+      MGame.tone(660,.5,'sine');
+      MGame.win({el:w, say:"It's "+nm+"'s turn", noPraise:true, cue:"It's "+nm+"'s turn!"});
+      busy=false; spin.disabled=false;
+    }
+    step();
+  });
+  render();
+})();
+</script>
+<script>window.MEvidence&&MEvidence.init({title:"Whose Turn?",evidence:{framework:"milestones",statementMatch:"turn"},getNotes:function(){return "Whose Turn? · turn-taking and shared attention";}});</script>
+</body>
+</html>

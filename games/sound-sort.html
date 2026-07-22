@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sound Sort — Milestone Games</title>
+<link rel="stylesheet" href="shell.css?v=4">
+<style>
+  #stage{cursor:default;display:flex;flex-direction:column;background:#eaf4f7}
+  .prompt{text-align:center;color:#14402b;padding:2.4vh 16px 1vh}
+  .prompt .big{font-size:11vh;font-weight:900;line-height:1;color:#1f7d99}
+  .prompt .say{font-size:3vh;font-weight:700;margin-top:.6vh;color:#23606f}
+  .grid{flex:1;display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:center;align-content:center;padding:6px 16px 16px}
+  .opt{font-size:9.5vh;background:#fff;border:4px solid #d8eaef;border-radius:22px;width:18vh;height:18vh;min-width:96px;min-height:96px;max-width:168px;max-height:168px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s,border-color .15s,opacity .25s}
+  .opt .lbl{font-size:2.2vh;font-weight:700;color:#3a5244}
+  .opt:active{transform:scale(.96)}
+  .opt.wrong{animation:wob .4s}
+  .opt.right{border-color:#1f7d99;background:#e6f3f7}
+  .opt.done{opacity:.45;cursor:default}
+  @keyframes wob{0%,100%{transform:translateX(0)}25%{transform:translateX(-12px)}75%{transform:translateX(12px)}}
+  .tick{position:absolute;top:6px;right:8px;font-size:3vh;opacity:0;transition:opacity .2s}
+  .opt.right .tick{opacity:1}
+  .replay{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.9);border:none;border-radius:14px;padding:9px 16px;font-weight:700;font-size:14px;color:#1f7d99;cursor:pointer;font-family:inherit;z-index:4}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar" id="bar"></div>
+  <div class="stage" id="stage">
+    <button class="snap" onclick="MGame.openEvidence()">📷 Snap evidence</button>
+    <div class="counter">Sorted: <span id="count">0</span></div>
+    <button class="replay" id="replay">🔊 Say the sound</button>
+    <div class="cue" id="cue"></div>
+    <div class="prompt"><div class="big" id="letter">s</div><div class="say">Tap everything that starts with this sound.</div></div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+<div class="sheet" id="sheet"></div>
+<script src="shell.js?v=6"></script>
+<script src="evidence.js?v=5"></script>
+<script>
+(function(){
+  var PH={a:'a',b:'buh',c:'cuh',d:'duh',f:'fff',h:'huh',m:'mmm',p:'puh',s:'sss',t:'tuh'};
+  // [emoji, word]; the initial letter of the word is the sound to sort by.
+  var BANK=[
+    ['☀️','sun'],['🧦','sock'],['🐍','snake'],['⭐','star'],
+    ['🌙','moon'],['🐭','mouse'],['🥛','milk'],['🗺️','map'],
+    ['🐱','cat'],['🥤','cup'],['🚗','car'],['🐮','cow'],
+    ['⚽','ball'],['🚌','bus'],['🐝','bee'],['📚','book'],
+    ['🌳','tree'],['🚂','train'],['🔟','ten'],['🐯','tiger'],
+    ['🐷','pig'],['🖊️','pen'],['🥧','pie'],['🍳','pan'],
+    ['🐟','fish'],['🦊','fox'],['🐸','frog'],['🔥','fire'],
+    ['🐶','dog'],['🦆','duck'],['🦕','dino'],
+    ['🎩','hat'],['🐔','hen'],['🏠','house'],['✋','hand']
+  ];
+  // initials that have at least 3 pictures = good targets
+  var byInit={};
+  BANK.forEach(function(w){ var k=w[1].charAt(0); (byInit[k]=byInit[k]||[]).push(w); });
+  var TARGETS=Object.keys(byInit).filter(function(k){ return byInit[k].length>=3; });
+
+  var grid=document.getElementById('grid'), letterEl=document.getElementById('letter'), countEl=document.getElementById('count');
+  var count=0, cur='s', need=0, found=0, busy=false;
+
+  MGame.init({
+    title:'Sound Sort',
+    framework:'CfE early literacy',
+    statement:'Identifies the initial sound in words · discriminates sounds',
+    engagement:'Realisation · Persistence',
+    praise:'listening',
+    setup:[
+      {key:'sset', label:'Target sounds', options:[{v:'all',label:'All'},{v:'common',label:'s t p m c'}], default:'all'},
+      {key:'gsize', label:'How many to find', options:[{v:3,label:'Find 3'},{v:2,label:'Find 2'}], default:3},
+      {key:'voiceMode', label:'Sound voice', options:[{v:'auto',label:'My recording'},{v:'computer',label:'Computer'}], default:'auto'}
+    ],
+    onConfig:function(){ round(); }
+  });
+  var COMMON={s:1,t:1,p:1,m:1,c:1};
+
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t; } return a; }
+  function saySound(){ MGame.say(PH[cur]||cur); }
+  document.getElementById('replay').addEventListener('click', saySound);
+
+  function targets(){
+    if(MGame.cfg('sset')==='common'){ var f=TARGETS.filter(function(k){ return COMMON[k]; }); if(f.length) return f; }
+    return TARGETS;
+  }
+  function round(){
+    busy=false; found=0; grid.innerHTML='';
+    var T=targets(); cur=T[Math.floor(Math.random()*T.length)]; letterEl.textContent=cur;
+    var gsize=MGame.cfg('gsize')||3;
+    var correct=shuffle(byInit[cur].slice()).slice(0,gsize); need=correct.length;
+    var others=shuffle(BANK.filter(function(w){ return w[1].charAt(0)!==cur; })).slice(0,gsize);
+    var set=shuffle(correct.concat(others));
+    setTimeout(saySound, 350);
+    set.forEach(function(w){
+      var isC=w[1].charAt(0)===cur;
+      var o=document.createElement('div'); o.className='opt';
+      o.innerHTML='<span class="tick">✅</span>'+w[0]+'<div class="lbl">'+w[1]+'</div>';
+      o.addEventListener('click', function(){
+        if(busy || o.classList.contains('right')) return;
+        if(isC){
+          o.classList.add('right'); MGame.tone(620,.3,'sine'); MGame.say(w[1]);
+          found++;
+          if(found>=need){
+            busy=true;
+            [].forEach.call(grid.children,function(x){ if(!x.classList.contains('right')) x.classList.add('done'); });
+            MGame.win({praiseKey:'listening', cue:'All found!'});
+            count++; countEl.textContent=count;
+            setTimeout(function(){ MGame.hideCue(); round(); }, 1600);
+          }
+        } else { o.classList.remove('wrong'); void o.offsetWidth; o.classList.add('wrong'); MGame.tone(200,.12,'sine'); }
+      });
+      grid.appendChild(o);
+    });
+  }
+  round();
+})();
+</script>
+<script>window.MEvidence&&MEvidence.init({title:"Sound Sort",evidence:{framework:"cfe",statementMatch:"sound"},noteUnit:"sounds sorted"});</script>
+</body>
+</html>

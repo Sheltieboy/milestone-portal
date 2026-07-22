@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Breathing Star — Milestone Games</title>
+<link rel="stylesheet" href="shell.css?v=4">
+<style>
+  #stage{cursor:default;background:#12303f;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  #stage.calm{background:#16323c}
+  .orb{width:34vh;height:34vh;max-width:340px;max-height:340px;border-radius:50%;background:#3f8f7d;display:flex;align-items:center;justify-content:center;color:#eafff6;font-size:4vh;font-weight:800;transition:transform 4s ease-in-out, background 4s ease-in-out;transform:scale(.55)}
+  .guide{margin-top:4vh;color:#bfe3d6;font-size:3.4vh;font-weight:700;letter-spacing:.5px;min-height:5vh}
+  .startbtn{margin-top:3vh;background:rgba(255,255,255,.14);color:#fff;border:none;border-radius:24px;padding:14px 26px;font-size:18px;font-weight:700;font-family:inherit;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar" id="bar"></div>
+  <div class="stage" id="stage">
+    <button class="snap" onclick="MGame.openEvidence()">📷 Snap evidence</button>
+    <div class="orb" id="orb">Breathe</div>
+    <div class="guide" id="guide">Tap start when you are ready</div>
+    <button class="startbtn" id="start">Start breathing</button>
+  </div>
+</div>
+<div class="sheet" id="sheet"></div>
+<script src="shell.js?v=6"></script>
+<script src="evidence.js?v=5"></script>
+<script>
+(function(){
+  var orb=document.getElementById('orb'), guide=document.getElementById('guide'), startBtn=document.getElementById('start');
+  var running=false, t=null, phase=0;
+  MGame.init({
+    title:'Breathing Star',
+    framework:'SHANARRI · Education Scotland Milestones',
+    statement:'Self-regulates · follows a calming routine · returns to a ready-to-learn state',
+    engagement:'Persistence · Realisation',
+    reinforcer:false
+  });
+  function dur(){ return MGame.calm ? 5000 : 4000; }
+  function setT(secs){ orb.style.transition='transform '+secs+'s ease-in-out, background '+secs+'s ease-in-out'; }
+  function step(){
+    if(!running) return;
+    var s=dur()/1000; setT(s);
+    if(phase===0){ guide.textContent='Breathe in…'; orb.style.transform='scale(1)'; orb.style.background='#5dcaa5'; orb.textContent='In'; MGame.tone(330,.5,'sine'); }
+    else if(phase===1){ guide.textContent='Hold…'; orb.textContent='Hold'; }
+    else { guide.textContent='Breathe out…'; orb.style.transform='scale(.55)'; orb.style.background='#3f8f7d'; orb.textContent='Out'; MGame.tone(220,.6,'sine'); }
+    phase=(phase+1)%3;
+    t=setTimeout(step, phase===2? dur()*0.5 : dur());
+  }
+  startBtn.addEventListener('click', function(){
+    running=!running;
+    if(running){ startBtn.textContent='Stop'; phase=0; step(); }
+    else { startBtn.textContent='Start breathing'; clearTimeout(t); guide.textContent='Well done'; setT(2); orb.style.transform='scale(.7)'; orb.style.background='#3f8f7d'; orb.textContent='Breathe'; }
+  });
+})();
+</script>
+<script>window.MEvidence&&MEvidence.init({title:"Breathing Star",evidence:{framework:"milestones",statementMatch:"regulat"},getNotes:function(){return "Breathing Star · guided calming / self-regulation routine";}});</script>
+</body>
+</html>

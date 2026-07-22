@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tap &amp; Discover — Milestone Games</title>
+<link rel="stylesheet" href="shell.css?v=4">
+<style>
+  #stage{background:#0e3b54}
+  #stage.calm{background:#27506a}
+  .pop{position:absolute;transform:translate(-50%,-50%) scale(0);font-size:13vh;line-height:1;pointer-events:none;transition:transform .4s cubic-bezier(.3,1.4,.5,1)}
+  .pop.in{transform:translate(-50%,-50%) scale(1)}
+  .hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.5);font-size:3.4vh;font-weight:700;pointer-events:none;text-align:center;padding:0 10%}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar" id="bar"></div>
+  <div class="stage" id="stage">
+    <button class="snap" onclick="MGame.openEvidence()">📷 Snap evidence</button>
+    <div class="counter">Taps: <span id="count">0</span></div>
+    <button class="cornerbtn" id="clear">Clear</button>
+    <div class="hint" id="hint">Touch anywhere on the board ✨</div>
+  </div>
+</div>
+<div class="sheet" id="sheet"></div>
+<script src="shell.js?v=6"></script>
+<script src="packs.js?v=2"></script>
+<script src="evidence.js?v=5"></script>
+<script>
+(function(){
+  function pickEmo(){ var items=MPacks.get(MGame.cfg('topic')); return items[Math.floor(Math.random()*items.length)][0]; }
+  var stage=document.getElementById('stage'), countEl=document.getElementById('count'), hint=document.getElementById('hint');
+  var count=0;
+  MGame.init({
+    title:'Tap & Discover',
+    framework:'Education Scotland Milestones',
+    statement:'Explores by touch · understands cause and effect · sustains attention',
+    engagement:'Exploration · Realisation · Persistence',
+    praise:'cause',
+    setup:[
+      {key:'topic', label:'What appears', type:'select', options:MPacks.options(), default:MPacks.current()}
+    ]
+  });
+  function discover(x,y){
+    if(hint){ hint.remove(); hint=null; }
+    var s=document.createElement('div'); s.className='pop';
+    s.textContent=pickEmo();
+    s.style.left=x+'px'; s.style.top=y+'px';
+    stage.appendChild(s);
+    requestAnimationFrame(function(){ s.classList.add('in'); });
+    MGame.tone(220+Math.random()*520,.35, MGame.calm?'sine':'triangle');
+    MGame.win({x:x, y:y, quiet:true, light:true});
+    count++; countEl.textContent=count;
+    if(stage.querySelectorAll('.pop').length>60){ var first=stage.querySelector('.pop'); if(first) first.remove(); }
+  }
+  stage.addEventListener('pointerdown', function(e){
+    if(e.target.closest('.snap')||e.target.closest('.cornerbtn')) return;
+    var r=stage.getBoundingClientRect();
+    discover(e.clientX-r.left, e.clientY-r.top);
+  });
+  document.getElementById('clear').addEventListener('click', function(){
+    [].forEach.call(stage.querySelectorAll('.pop'), function(p){ p.remove(); });
+  });
+})();
+</script>
+<script>window.MEvidence&&MEvidence.init({title:"Tap & Discover",evidence:{framework:"milestones",statementMatch:"cause"},noteUnit:"taps"});</script>
+</body>
+</html>
