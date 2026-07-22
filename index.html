@@ -2732,9 +2732,11 @@
       const img = document.getElementById('pp-photo-img'), empty = document.getElementById('pp-photo-empty')
       if (!currentPupil.photo_path) { img.style.display = 'none'; img.removeAttribute('src'); empty.style.display = 'block'; return }
       try {
-        const { data } = await getSbClient().storage.from('evidence-media').createSignedUrl(currentPupil.photo_path, 600)
+        const sb = getSbClient()
+        await sb.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token || '' })
+        const { data } = await sb.storage.from('evidence-media').createSignedUrl(currentPupil.photo_path, 600)
         if (data?.signedUrl) { img.src = data.signedUrl; img.style.display = 'block'; empty.style.display = 'none' }
-      } catch (e) {}
+      } catch (e) { console.warn('passport photo url', e) }
     }
     async function uploadPassportPhoto(input) {
       const file = input.files[0]; if (!file) return
@@ -2748,11 +2750,12 @@
         body: file
       })
       if (!up.ok) { alert('Photo upload failed. Please try again.'); return }
-      await fetch(`${SUPABASE_URL}/rest/v1/pupils?id=eq.${currentPupil.id}`, {
+      const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/pupils?id=eq.${currentPupil.id}`, {
         method: 'PATCH',
         headers: { ...headers(session.access_token), 'Prefer': 'return=minimal' },
         body: JSON.stringify({ photo_path: path, passport_updated_at: new Date().toISOString() })
       })
+      if (!patchRes.ok) { alert('Couldn’t save the photo to this pupil. Please try again in a moment.'); return }
       currentPupil.photo_path = path
       input.value = ''
       loadPassportPhoto()
