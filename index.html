@@ -1500,7 +1500,10 @@
           <div class="hub-panel active" id="panel-passport">
             <div class="section-header">
               <div class="section-title">Pupil Passport</div>
-              <span class="badge badge-green" id="passport-updated">—</span>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span class="badge badge-green" id="passport-updated">—</span>
+                <button class="btn btn-sm" id="pp-save-btn" onclick="savePassportNow()">Save passport</button>
+              </div>
             </div>
             <div class="pp2-grid">
 
@@ -2754,6 +2757,47 @@
       input.value = ''
       loadPassportPhoto()
       document.getElementById('passport-updated').textContent = 'Updated just now'
+    }
+
+    // Explicit save — gathers every field at once, surfaces errors (autosave stays a safety net)
+    async function savePassportNow() {
+      if (!currentPupil) return
+      const btn = document.getElementById('pp-save-btn')
+      btn.disabled = true; btn.textContent = 'Saving…'
+      const v = (id) => { const el = document.getElementById(id); return el ? (el.value || null) : null }
+      const body = {
+        passport_communication: v('pp-communication'),
+        passport_likes: v('pp-likes'),
+        passport_dislikes: v('pp-dislikes'),
+        passport_good_at: v('pp-good_at'),
+        passport_needs_help: v('pp-needs_help'),
+        passport_learn_best: v('pp-learn_best'),
+        passport_personal_care: v('pp-personal_care'),
+        passport_medical: v('pp-medical'),
+        passport_other: v('pp-other'),
+        passport_language_stage: currentPupil.passport_language_stage || null,
+        passport_boxes: passportBoxes(),
+        dob: v('pp-dob'),
+        passport_updated_at: new Date().toISOString(),
+      }
+      Object.keys(body).forEach(k => { if (k !== 'passport_boxes') currentPupil[k] = body[k] })
+      let ok = false
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/pupils?id=eq.${currentPupil.id}`, {
+          method: 'PATCH',
+          headers: { ...headers(session.access_token), 'Prefer': 'return=minimal' },
+          body: JSON.stringify(body),
+        })
+        ok = res.ok
+      } catch (e) { ok = false }
+      if (!ok) {
+        btn.disabled = false; btn.textContent = 'Save passport'
+        alert('Couldn’t save the passport. Please try again in a moment. (If this keeps happening, the passport database update may still be pending.)')
+        return
+      }
+      document.getElementById('passport-updated').textContent = 'Updated just now'
+      btn.textContent = 'Saved ✓'
+      setTimeout(() => { btn.disabled = false; btn.textContent = 'Save passport' }, 1600)
     }
 
     // ── TARGETS ──
