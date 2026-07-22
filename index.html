@@ -738,6 +738,51 @@
     .target-status { font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.7rem; border-radius: 20px; }
     .target-desc { font-size: 0.9rem; color: var(--ink); line-height: 1.5; }
     .target-meta { font-size: 0.75rem; color: var(--ink-soft); margin-top: 0.5rem; }
+    /* ── Plan-targets builder ── */
+    .pt-modal { max-width: 640px; width: 100%; max-height: 92vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+    .pt-head { display: flex; align-items: center; justify-content: space-between; padding: 1.1rem 1.4rem; border-bottom: 1px solid var(--border); }
+    .pt-close { background: none; border: none; font-size: 1.1rem; color: var(--ink-soft); cursor: pointer; line-height: 1; }
+    .pt-fixed { padding: 1rem 1.4rem 1.1rem; border-bottom: 1px solid var(--border); background: #fbfdfc; }
+    .pt-sublabel { font-size: 0.68rem; font-weight: 700; color: var(--green-mid); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+    .pt-terms { display: flex; gap: 8px; }
+    .pt-term { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 4px; border-radius: 10px; border: 1px solid var(--border); background: #fff; font-size: 0.82rem; font-weight: 600; color: #3a5244; cursor: pointer; }
+    .pt-term.active { background: #1a5c3a; border-color: #1a5c3a; color: #fff; }
+    .pt-term-badge { min-width: 18px; height: 18px; border-radius: 9px; padding: 0 5px; font-size: 0.66rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; background: #1a5c3a; color: #fff; }
+    .pt-term.active .pt-term-badge { background: #86efac; color: #1a5c3a; }
+    .pt-fwchips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pt-fwchip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 20px; border: 1px solid var(--border); background: #fff; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+    .pt-fwchip-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .pt-fwchip-badge { min-width: 17px; height: 17px; border-radius: 9px; padding: 0 4px; font-size: 0.62rem; font-weight: 800; color: #fff; display: inline-flex; align-items: center; justify-content: center; }
+    .pt-body { flex: 1; overflow-y: auto; padding: 1rem 1.4rem; min-height: 200px; }
+    .pt-footer { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.4rem; border-top: 1px solid var(--border); background: #fff; }
+    .pt-toggle { display: flex; gap: 6px; background: #e0f0e8; border-radius: 10px; padding: 4px; margin-bottom: 12px; }
+    .pt-toggle-btn { flex: 1; padding: 8px; border-radius: 8px; border: none; background: none; font-size: 0.8rem; font-weight: 600; color: #6b8578; cursor: pointer; }
+    .pt-toggle-btn.active { background: #fff; color: #1a5c3a; font-weight: 800; }
+    .pt-sec { margin-bottom: 6px; }
+    .pt-sec-head { display: flex; align-items: center; justify-content: space-between; padding: 11px 12px; background: #fff; border: 1px solid var(--border); border-left-width: 4px; border-radius: 10px; cursor: pointer; }
+    .pt-sec-title { font-size: 0.85rem; font-weight: 800; }
+    .pt-sec-desc { font-size: 0.74rem; color: var(--ink-soft); font-style: italic; margin-top: 3px; line-height: 1.4; }
+    .pt-sec-count { font-size: 0.75rem; font-weight: 700; }
+    .pt-strand { display: flex; align-items: center; justify-content: space-between; margin: 12px 2px 6px; }
+    .pt-strand-title { font-size: 0.7rem; font-weight: 700; color: var(--green-mid); text-transform: uppercase; letter-spacing: 0.04em; }
+    .pt-strand-count { font-size: 0.68rem; color: var(--ink-soft); }
+    .pt-eo { display: flex; align-items: center; gap: 10px; background: #fff; border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 13px; margin-bottom: 8px; cursor: pointer; }
+    .pt-eo-left { flex: 1; }
+    .pt-eo-code { font-size: 0.7rem; font-weight: 700; color: var(--green-mid); margin-bottom: 3px; }
+    .pt-eo-statement { font-size: 0.86rem; color: var(--ink); line-height: 1.4; }
+    .pt-eo-example { font-size: 0.75rem; color: var(--ink-soft); font-style: italic; margin-top: 4px; line-height: 1.4; }
+    .pt-eo-check { width: 22px; height: 22px; border-radius: 11px; border: 2px solid var(--border); flex-shrink: 0; }
+    .pt-eo-tag { min-width: 30px; text-align: center; font-size: 0.68rem; font-weight: 800; }
+    .pt-eo.on-active { color: #fff; }
+    .pt-eo.on-active .pt-eo-code, .pt-eo.on-active .pt-eo-statement, .pt-eo.on-active .pt-eo-example { color: #fff; }
+    .pt-eo-saved { font-size: 0.7rem; font-weight: 600; margin-top: 7px; }
+    .pt-noresults { text-align: center; color: var(--ink-soft); font-size: 0.85rem; margin-top: 20px; }
+    .pt-search { width: 100%; margin-bottom: 12px; }
+    .pt-add-btn { width: 100%; margin-top: 10px; }
+    .uv-chip { display: inline-flex; flex-direction: column; align-items: flex-start; background: #fff; border: 1.5px solid var(--border); border-radius: 10px; padding: 7px 11px; font-size: 0.82rem; font-weight: 600; color: var(--ink); cursor: pointer; }
+    .uv-chip.on { background: #e0f2fe; border-color: #0891b2; color: #0369a1; }
+    .uv-sub { font-size: 0.68rem; color: var(--ink-soft); font-weight: 500; margin-top: 1px; }
+    .uv-chip.on .uv-sub { color: #0369a1; }
 
     /* ── MODAL ── */
     .modal-overlay {
@@ -1384,6 +1429,7 @@
               <div>
                 <div class="hub-name" id="hub-name">—</div>
                 <div class="hub-asn" id="hub-asn">—</div>
+                <div id="hub-overlap" style="display:none;margin-top:8px"></div>
               </div>
             </div>
           </div>
@@ -1443,7 +1489,7 @@
           <div class="hub-panel" id="panel-targets">
             <div class="section-header">
               <div class="section-title">Learning Targets</div>
-              <a href="https://getmilestone.app" style="font-size:0.82rem;color:var(--green-mid);font-weight:600;">Add via app →</a>
+              <button class="btn btn-sm" onclick="showPlanModal()">+ Plan targets</button>
             </div>
             <div class="targets-list" id="hub-targets"></div>
           </div>
@@ -1730,9 +1776,38 @@
         <div id="doc-filename" style="margin-top:0.5rem;font-size:0.85rem;color:var(--green-mid);font-weight:600;"></div>
       </div>
       <input type="file" id="doc-file" style="display:none" onchange="handleFileSelect(this)">
+      <div class="form-group" style="margin-top:1rem">
+        <label class="form-label">Who can see it <span style="color:var(--ink-soft);font-weight:400">(optional)</span></label>
+        <div style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:0.6rem;line-height:1.5">Choose who in the pupil's team this is shared with. Leave blank to keep it for school staff only.</div>
+        <div id="upload-viewers" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
       <div class="modal-footer">
         <button class="btn" onclick="saveDocument()">Upload document</button>
         <button class="btn btn-secondary" onclick="closeModal('modal-upload')">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLAN TARGETS BUILDER -->
+  <div class="modal-overlay" id="modal-plan-targets">
+    <div class="modal pt-modal">
+      <div class="pt-head">
+        <div class="modal-title" style="margin:0">Plan targets</div>
+        <button class="pt-close" onclick="closeModal('modal-plan-targets')" aria-label="Close">✕</button>
+      </div>
+      <div class="pt-fixed">
+        <div class="pt-sublabel">Adding to — pick a term</div>
+        <div class="pt-terms" id="pt-terms"></div>
+        <div class="pt-sublabel" style="margin-top:12px">Framework</div>
+        <div class="pt-fwchips" id="pt-fwchips"></div>
+      </div>
+      <div class="pt-body" id="pt-body"></div>
+      <div class="pt-footer">
+        <div>
+          <div id="pt-basket-count" style="font-size:0.9rem;font-weight:800;color:#1a5c3a">0 new targets</div>
+          <div id="pt-basket-sub" style="font-size:0.75rem;color:var(--ink-soft)"></div>
+        </div>
+        <button class="btn" id="pt-save-btn" onclick="ptSavePlan()" disabled>Save plan</button>
       </div>
     </div>
   </div>
@@ -1766,6 +1841,9 @@
     let hubSupportTypes = []
     let hubEngagementLevels = []
     let hubTargets = []
+    let uploadTeamList = []
+    let uploadSelectedViewers = new Set()
+    const relLabel = (r) => ({ mother:'Mother', father:'Father', guardian:'Guardian', carer:'Carer' }[r] || (r ? r.charAt(0).toUpperCase()+r.slice(1) : 'Guardian'))
     let editingEvId = null
 
     // Evidence detail modal constants
@@ -2226,6 +2304,16 @@
 
     // ── PUPIL HUB ──
 
+    async function endPupilOverlap() {
+      if (!currentPupil) return
+      if (!confirm('End your access to this pupil? You will no longer see their record, and the handover to the new teacher is complete. This cannot be undone.')) return
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/rpc_end_pupil_overlap`, {
+        method: 'POST', headers: headers(session.access_token), body: JSON.stringify({ _pupil_id: currentPupil.id })
+      })
+      if (res.ok) { alert('Access ended — the handover is complete.'); window.location.reload() }
+      else alert("Couldn't end access: " + await res.text())
+    }
+
     async function openPupilHub(pupilId, _fromHistory) {
       currentPupil = pupils.find(p => p.id === pupilId)
       if (!currentPupil) return
@@ -2249,6 +2337,15 @@
       document.getElementById('hub-avatar').textContent = currentPupil.full_name.charAt(0).toUpperCase()
       document.getElementById('hub-name').textContent = currentPupil.full_name
       document.getElementById('hub-asn').textContent = currentPupil.asn_category || 'No category set'
+      const ov = document.getElementById('hub-overlap')
+      if (ov) {
+        const inOverlap = currentPupil.previous_school_id && currentProfile?.school_id && currentPupil.previous_school_id === currentProfile.school_id
+        ov.innerHTML = inOverlap ? `<div style="background:#fff7e8;border:1px solid #f0e2c8;border-radius:10px;padding:10px 12px;font-size:0.82rem;color:#92670f;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <span>🤝 Handover overlap — you still have full access to this pupil until you end it.</span>
+            <button class="btn btn-sm" onclick="endPupilOverlap()" style="background:#a32d2d;color:#fff;flex-shrink:0">End my access</button>
+          </div>` : ''
+        ov.style.display = inOverlap ? 'block' : 'none'
+      }
 
       // Fill passport fields
       const fields = ['likes','dislikes','communication','calm','strategies','notes']
@@ -2340,12 +2437,28 @@
       // Guardians + handover panel
       loadGuardiansAndHandover(id).catch(e => console.warn('guardians', e))
 
-      // Documents
-      const dRes = await fetch(`${SUPABASE_URL}/rest/v1/documents?pupil_id=eq.${id}&order=created_at.desc`, {
-        headers: headers(session.access_token)
-      })
+      // Documents (+ per-document "shared with")
+      const [dRes, dgRes] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/documents?pupil_id=eq.${id}&order=created_at.desc`, { headers: headers(session.access_token) }),
+        fetch(`${SUPABASE_URL}/rest/v1/pupil_guardians?pupil_id=eq.${id}&select=id,name,email&order=created_at`, { headers: headers(session.access_token) }),
+      ])
       const docs = await dRes.json()
-      renderDocuments(docs)
+      const docGuardians = dgRes.ok ? await dgRes.json() : []
+      const docTeam = Array.isArray(team) ? team : []
+      const docViewers = {}
+      if (Array.isArray(docs) && docs.length) {
+        const dvRes = await fetch(`${SUPABASE_URL}/rest/v1/document_viewers?document_id=in.(${docs.map(d => d.id).join(',')})&select=document_id,team_member_id,guardian_id`, { headers: headers(session.access_token) })
+        const dv = dvRes.ok ? await dvRes.json() : []
+        const nameFor = (row) => row.team_member_id
+          ? docTeam.find(t => t.id === row.team_member_id)?.name
+          : (docGuardians.find(g => g.id === row.guardian_id)?.name || docGuardians.find(g => g.id === row.guardian_id)?.email)
+        for (const row of (Array.isArray(dv) ? dv : [])) {
+          const n = nameFor(row)
+          if (!n) continue
+          ;(docViewers[row.document_id] = docViewers[row.document_id] || []).push(n)
+        }
+      }
+      renderDocuments(docs, docViewers)
     }
 
     function showTab(tab, _fromHistory) {
@@ -3108,7 +3221,7 @@
       document.getElementById('doc-filename').textContent = selectedFile ? selectedFile.name : ''
     }
 
-    function renderDocuments(docs) {
+    function renderDocuments(docs, docViewers = {}) {
       const container = document.getElementById('hub-documents')
       if (!docs.length) {
         container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📁</div><div class="empty-state-title">No documents yet</div><div class="empty-state-sub">Upload EP reports, SALT assessments, medical letters, CSP documents and anything else relevant to this pupil.</div></div>`
@@ -3117,12 +3230,17 @@
       const icons = { 'application/pdf': '📄', 'image/': '🖼️', 'application/msword': '📝', 'application/vnd': '📝' }
       container.innerHTML = docs.map(d => {
         const icon = Object.entries(icons).find(([k]) => d.file_type?.startsWith(k))?.[1] || '📄'
+        const shared = docViewers[d.id] || []
+        const sharedHtml = shared.length
+          ? `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:8px"><span style="font-size:0.72rem;color:var(--ink-soft);font-weight:600">Shared with</span>${shared.map(n => `<span style="background:#e0f2fe;color:#0369a1;font-size:0.72rem;font-weight:600;padding:2px 7px;border-radius:6px">${escapeHtml(n)}</span>`).join('')}</div>`
+          : ''
         return `<div class="doc-card">
           <div class="doc-icon">${icon}</div>
           <div style="flex:1">
             <div class="doc-name">${escapeHtml(d.name || '')}</div>
             ${d.description ? `<div class="doc-desc">${escapeHtml(d.description)}</div>` : ''}
             <div class="doc-meta">Uploaded ${new Date(d.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+            ${sharedHtml}
           </div>
         </div>`
       }).join('')
@@ -3181,9 +3299,9 @@
         return
       }
 
-      await fetch(`${SUPABASE_URL}/rest/v1/documents`, {
+      const docRes = await fetch(`${SUPABASE_URL}/rest/v1/documents`, {
         method: 'POST',
-        headers: { ...headers(session.access_token), 'Prefer': 'return=minimal' },
+        headers: { ...headers(session.access_token), 'Prefer': 'return=representation' },
         body: JSON.stringify({
           pupil_id: currentPupil.id,
           name,
@@ -3194,10 +3312,25 @@
           uploaded_by: session.user.id
         })
       })
+      const inserted = docRes.ok ? (await docRes.json())[0] : null
+
+      // Record who this document is shared with (the pupil's team)
+      if (inserted?.id && uploadSelectedViewers.size > 0) {
+        const rows = [...uploadSelectedViewers].map(key => {
+          const [kind, vid] = key.split(':')
+          return kind === 'tm' ? { document_id: inserted.id, team_member_id: vid } : { document_id: inserted.id, guardian_id: vid }
+        })
+        await fetch(`${SUPABASE_URL}/rest/v1/document_viewers`, {
+          method: 'POST',
+          headers: { ...headers(session.access_token), 'Prefer': 'return=minimal' },
+          body: JSON.stringify(rows)
+        }).catch(() => {})
+      }
 
       closeModal('modal-upload')
       ;['doc-name','doc-desc'].forEach(id => document.getElementById(id).value = '')
       selectedFile = null
+      uploadSelectedViewers = new Set()
       document.getElementById('doc-filename').textContent = ''
       await loadHubData()
       showTab('documents')
@@ -3207,7 +3340,42 @@
 
     function showAddTeamModal() { document.getElementById('modal-team').style.display = 'flex' }
     function showAddEvidenceModal() { document.getElementById('modal-evidence').style.display = 'flex' }
-    function showUploadModal() { document.getElementById('modal-upload').style.display = 'flex' }
+    async function showUploadModal() {
+      uploadSelectedViewers = new Set()
+      uploadTeamList = []
+      document.getElementById('upload-viewers').innerHTML = '<div style="font-size:0.82rem;color:var(--ink-soft)">Loading team…</div>'
+      document.getElementById('modal-upload').style.display = 'flex'
+      try {
+        const [tmRes, gRes] = await Promise.all([
+          fetch(`${SUPABASE_URL}/rest/v1/team_members?pupil_id=eq.${currentPupil.id}&select=id,name,role&order=created_at`, { headers: headers(session.access_token) }),
+          fetch(`${SUPABASE_URL}/rest/v1/pupil_guardians?pupil_id=eq.${currentPupil.id}&select=id,name,email,relationship&order=created_at`, { headers: headers(session.access_token) }),
+        ])
+        const tm = tmRes.ok ? await tmRes.json() : []
+        const g = gRes.ok ? await gRes.json() : []
+        uploadTeamList = [
+          ...tm.map(m => ({ key: `tm:${m.id}`, name: m.name || 'Team member', sub: m.role || '' })),
+          ...g.map(x => ({ key: `g:${x.id}`, name: x.name || x.email || 'Guardian', sub: relLabel(x.relationship) })),
+        ]
+      } catch (e) {}
+      renderUploadViewers()
+    }
+    function renderUploadViewers() {
+      const el = document.getElementById('upload-viewers')
+      if (!el) return
+      if (!uploadTeamList.length) {
+        el.innerHTML = `<div style="font-size:0.82rem;color:var(--ink-soft);font-style:italic">No team members added yet — add people on the Team tab to share documents with them.</div>`
+        return
+      }
+      el.innerHTML = uploadTeamList.map(t => {
+        const on = uploadSelectedViewers.has(t.key)
+        return `<div class="uv-chip ${on ? 'on' : ''}" onclick="toggleUploadViewer('${t.key}')">${on ? '✓ ' : ''}${escapeHtml(t.name)}${t.sub ? `<span class="uv-sub">${escapeHtml(t.sub)}</span>` : ''}</div>`
+      }).join('')
+    }
+    function toggleUploadViewer(key) {
+      if (uploadSelectedViewers.has(key)) uploadSelectedViewers.delete(key)
+      else uploadSelectedViewers.add(key)
+      renderUploadViewers()
+    }
     function closeModal(id) { document.getElementById(id).style.display = 'none' }
 
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
@@ -3687,6 +3855,242 @@
         cachedFrameworkMilestones = data
       }
       return cachedFrameworkMilestones
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // PLAN-TARGETS BUILDER (web parity with the app's TargetsScreen)
+    // ══════════════════════════════════════════════════════════════════
+    const PT_TERMS = ['Term 1', 'Term 2', 'Term 3', 'Term 4']
+    const PT_FRAMEWORKS = [
+      { key: 'milestones', label: 'Milestones' },
+      { key: 'cfe', label: 'CfE' },
+      { key: 'shanarri', label: 'SHANARRI' },
+      { key: 'csp', label: 'IEP/CSP' },
+      { key: 'ahp', label: 'AHP' },
+    ]
+    const PT_FW_LIGHT = { milestones: '#dbeafe', cfe: '#d1fae5', shanarri: '#ede9fe', csp: '#fde9c8', ahp: '#e0f2fe' }
+    const PT_CFE_LEVELS = { early: 'Early', first: 'First', second: 'Second', third: 'Third', fourth: 'Fourth' }
+    const PT_AHP_PROFESSIONS = ['Speech & Language Therapy', 'Occupational Therapy', 'Physiotherapy', 'Educational Psychology', 'Specialist Teacher', 'Other']
+
+    let cachedCspTemplates = null
+    async function getCspTemplates() {
+      if (Array.isArray(cachedCspTemplates)) return cachedCspTemplates
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/csp_templates?select=category,template&order=sort_order`, { headers: headers(session.access_token) })
+      const data = await res.json()
+      cachedCspTemplates = Array.isArray(data) ? data : []
+      return cachedCspTemplates
+    }
+
+    const ptState = { term: 'Term 1', fw: 'milestones', basket: [], search: '', expanded: new Set(), browse: true, cspCategory: null, ahpProfession: null, custom: '' }
+
+    const ptFwLabel = () => (FW_LABEL[ptState.fw] || ptState.fw)
+    const ptTermCount = (term) => hubTargets.filter(t => t.planned_term === term).length + ptState.basket.filter(b => b.term === term).length
+    const ptFwCount = (fw) => hubTargets.filter(t => t.framework === fw).length + ptState.basket.filter(b => b.framework === fw).length
+    const ptRowMatches = (item, row) => (row.id && item.milestone_id === row.id) || (item.framework === row.framework && (item.description || '') === row.statement)
+    const ptSavedTerms = (row) => hubTargets.filter(t => ptRowMatches(t, row)).map(t => t.planned_term)
+    const ptBasketTerms = (row) => ptState.basket.filter(b => ptRowMatches(b, row)).map(b => b.term)
+    const ptFmtTerms = (terms) => {
+      const codes = PT_TERMS.filter(t => terms.includes(t)).map(t => t.replace('Term ', 'T'))
+      if (codes.length <= 1) return codes.join('')
+      if (codes.length === 2) return codes.join(' & ')
+      return codes.slice(0, -1).join(', ') + ' & ' + codes[codes.length - 1]
+    }
+
+    async function showPlanModal() {
+      if (!currentPupil) return
+      ptState.term = 'Term 1'; ptState.fw = 'milestones'; ptState.basket = []; ptState.search = ''
+      ptState.expanded = new Set(); ptState.browse = true; ptState.cspCategory = null; ptState.ahpProfession = null; ptState.custom = ''
+      document.getElementById('modal-plan-targets').style.display = 'flex'
+      document.getElementById('pt-body').innerHTML = '<div class="pt-noresults">Loading frameworks…</div>'
+      ptRenderChrome()
+      try { await Promise.all([getFrameworkMilestones(), getCspTemplates()]) } catch (e) {}
+      ptRenderBody()
+    }
+
+    function ptRenderChrome() {
+      document.getElementById('pt-terms').innerHTML = PT_TERMS.map(term => {
+        const c = ptTermCount(term), active = ptState.term === term
+        return `<div class="pt-term ${active ? 'active' : ''}" onclick="ptSetTerm('${term}')">${term.replace('Term ', 'T')}${c > 0 ? `<span class="pt-term-badge">${c}</span>` : ''}</div>`
+      }).join('')
+      document.getElementById('pt-fwchips').innerHTML = PT_FRAMEWORKS.map(f => {
+        const c = ptFwCount(f.key), active = ptState.fw === f.key, col = FW_COLOUR[f.key]
+        return `<div class="pt-fwchip" style="${active ? `background:${col};border-color:${col};color:#fff` : `color:${col}`}" onclick="ptSetFw('${f.key}')">${active ? '' : `<span class="pt-fwchip-dot" style="background:${col}"></span>`}${f.label}${c > 0 ? `<span class="pt-fwchip-badge" style="background:${active ? 'rgba(255,255,255,0.3)' : col}">${c}</span>` : ''}</div>`
+      }).join('')
+      ptRenderFooter()
+    }
+
+    function ptRenderFooter() {
+      const n = ptState.basket.length
+      document.getElementById('pt-basket-count').textContent = `${n} new target${n !== 1 ? 's' : ''}`
+      document.getElementById('pt-basket-sub').textContent = `${hubTargets.length + n} in plan total`
+      const btn = document.getElementById('pt-save-btn')
+      btn.disabled = n === 0
+      btn.textContent = n > 0 ? `Save plan (${n})` : 'Save plan'
+    }
+
+    function ptSetTerm(t) { ptState.term = t; ptRenderChrome(); ptRenderBody() }
+    function ptSetFw(fw) {
+      ptState.fw = fw; ptState.search = ''; ptState.browse = true; ptState.expanded = new Set(); ptState.ahpProfession = null; ptState.custom = ''
+      if (fw === 'csp') { const cats = [...new Set((cachedCspTemplates || []).map(t => t.category))]; ptState.cspCategory = cats[0] || null }
+      ptRenderChrome(); ptRenderBody()
+    }
+    function ptSetBrowse(b) { const el = document.getElementById('pt-custom'); if (el) ptState.custom = el.value; ptState.browse = b; ptRenderBody() }
+
+    function ptRenderBody() {
+      const body = document.getElementById('pt-body')
+      if (ptState.fw === 'ahp') { body.innerHTML = ptAhpHtml(); return }
+      let html = `<div class="pt-toggle">
+        <button class="pt-toggle-btn ${ptState.browse ? 'active' : ''}" onclick="ptSetBrowse(true)">Browse</button>
+        <button class="pt-toggle-btn ${!ptState.browse ? 'active' : ''}" onclick="ptSetBrowse(false)">Write my own</button>
+      </div>`
+      if (!ptState.browse) html += ptCustomHtml()
+      else if (ptState.fw === 'csp') html += ptCspHtml()
+      else html += `<input class="form-input pt-search" placeholder="Search ${ptFwLabel()}…" value="${escapeHtml(ptState.search)}" oninput="ptOnSearch(this.value)"><div id="pt-list">${ptListHtml()}</div>`
+      body.innerHTML = html
+    }
+
+    function ptOnSearch(v) { ptState.search = v; ptRenderList() }
+    function ptRenderList() { const el = document.getElementById('pt-list'); if (el) el.innerHTML = ptListHtml() }
+    function ptToggleSection(sec) { if (ptState.expanded.has(sec)) ptState.expanded.delete(sec); else ptState.expanded.add(sec); ptRenderList() }
+
+    function ptListHtml() {
+      const fw = ptState.fw
+      const rows = (cachedFrameworkMilestones || []).filter(m => m.framework === fw)
+      if (!rows.length) return `<div class="pt-noresults">No ${ptFwLabel()} statements loaded.</div>`
+      const q = ptState.search.trim().toLowerCase()
+      const matches = (r) => !q || (r.statement || '').toLowerCase().includes(q) || (r.strand || '').toLowerCase().includes(q) || (r.section || '').toLowerCase().includes(q) || (r.cfe_code || '').toLowerCase().includes(q) || (r.classroom_example || '').toLowerCase().includes(q)
+      const secMap = new Map()
+      for (const m of rows) {
+        const s = m.section || 'General'
+        if (!secMap.has(s)) secMap.set(s, { section: s, section_desc: m.section_desc, strands: new Map() })
+        const st = m.strand || '', so = secMap.get(s)
+        if (!so.strands.has(st)) so.strands.set(st, [])
+        so.strands.get(st).push(m)
+      }
+      const colour = FW_COLOUR[fw]
+      let anyShown = false, html = ''
+      for (const so of secMap.values()) {
+        const strandEntries = [...so.strands.entries()].map(([st, rs]) => [st, rs.filter(matches)]).filter(([, rs]) => rs.length)
+        if (!strandEntries.length) continue
+        anyShown = true
+        const total = strandEntries.reduce((a, [, rs]) => a + rs.length, 0)
+        const expanded = q ? true : ptState.expanded.has(so.section)
+        const title = so.section.replace(/^Section\s+\S+\s*·\s*/i, '')
+        html += `<div class="pt-sec"><div class="pt-sec-head" style="border-left-color:${colour}" data-sec="${escapeHtml(so.section)}" onclick="ptToggleSection(this.dataset.sec)">
+          <div><div class="pt-sec-title" style="color:${colour}">${escapeHtml(title)}</div>${so.section_desc ? `<div class="pt-sec-desc">${escapeHtml(so.section_desc)}</div>` : ''}</div>
+          <div style="display:flex;align-items:center;gap:6px"><span class="pt-sec-count" style="color:${colour}">${total}</span><span style="color:${colour};font-size:0.7rem">${expanded ? '▴' : '▾'}</span></div>
+        </div>`
+        if (expanded) {
+          for (const [st, rs] of strandEntries) {
+            if (st) html += `<div class="pt-strand"><span class="pt-strand-title">${escapeHtml(st)}</span><span class="pt-strand-count">${rs.length} step${rs.length !== 1 ? 's' : ''}</span></div>`
+            for (const r of rs) {
+              const allTerms = [...new Set([...ptSavedTerms(r), ...ptBasketTerms(r)])]
+              const activeSel = allTerms.includes(ptState.term), otherSel = !activeSel && allTerms.length > 0
+              const locked = ptSavedTerms(r).includes(ptState.term)
+              const style = activeSel ? `background:${colour};border-color:${colour}` : (otherSel ? `background:${PT_FW_LIGHT[fw]};border-color:${colour}` : '')
+              const tagColour = activeSel ? '#fff' : colour
+              html += `<div class="pt-eo ${activeSel ? 'on-active' : ''}" style="${style}" onclick="ptToggleRow('${r.id}')">
+                <div class="pt-eo-left">
+                  ${r.cfe_code ? `<div class="pt-eo-code">${escapeHtml(r.cfe_code)}${r.cfe_level ? ` · ${PT_CFE_LEVELS[r.cfe_level] || ''}` : ''}</div>` : ''}
+                  <div class="pt-eo-statement">${escapeHtml(r.statement)}</div>
+                  ${r.classroom_example ? `<div class="pt-eo-example">e.g. ${escapeHtml(r.classroom_example)}</div>` : ''}
+                  ${locked ? `<div class="pt-eo-saved" style="color:${activeSel ? '#fff' : '#2d8a5e'}">✓ Saved for ${ptState.term}</div>` : ''}
+                </div>
+                ${allTerms.length ? `<div class="pt-eo-tag" style="color:${tagColour}">${ptFmtTerms(allTerms)} ✓</div>` : `<div class="pt-eo-check"></div>`}
+              </div>`
+            }
+          }
+        }
+        html += `</div>`
+      }
+      if (!anyShown) return `<div class="pt-noresults">No matches for "${escapeHtml(ptState.search)}".</div>`
+      return html
+    }
+
+    function ptToggleRow(rowId) {
+      const row = (cachedFrameworkMilestones || []).find(r => r.id === rowId)
+      if (!row) return
+      if (ptSavedTerms(row).includes(ptState.term)) return
+      const key = `${row.id}:${ptState.term}`
+      const idx = ptState.basket.findIndex(b => b.key === key)
+      if (idx >= 0) ptState.basket.splice(idx, 1)
+      else ptState.basket.push({ key, framework: ptState.fw, term: ptState.term, milestone_id: row.id, description: row.statement, cfe_level: row.cfe_level ? PT_CFE_LEVELS[row.cfe_level] : null, category: row.strand || row.section || ptFwLabel() })
+      ptRenderChrome(); ptRenderList()
+    }
+
+    function ptCustomHtml() {
+      return `<div class="pt-sublabel" style="color:var(--ink)">Your target (${ptFwLabel()}) → ${ptState.term}</div>
+        <textarea class="form-input" id="pt-custom" rows="3" placeholder="Write your own target based on this framework…">${escapeHtml(ptState.custom)}</textarea>
+        <button class="btn pt-add-btn" onclick="ptAddCustom()">+ Add to ${ptState.term} plan</button>`
+    }
+    function ptAddCustom() {
+      const el = document.getElementById('pt-custom'), text = (el?.value || '').trim()
+      if (!text) return
+      ptState.basket.push({ key: 'custom:' + ptState.basket.length + ':' + text.slice(0, 12), framework: ptState.fw, term: ptState.term, milestone_id: null, description: text, cfe_level: null, category: ptFwLabel() })
+      ptState.custom = ''
+      ptRenderChrome(); ptRenderBody()
+    }
+
+    function ptCspHtml() {
+      const cats = [...new Set((cachedCspTemplates || []).map(t => t.category))]
+      if (!cats.length) return `<div class="pt-noresults">No CSP templates loaded.</div>`
+      if (!ptState.cspCategory) ptState.cspCategory = cats[0]
+      const chips = cats.map((cat, i) => `<div class="pt-fwchip" style="${ptState.cspCategory === cat ? 'background:#d97706;border-color:#d97706;color:#fff' : 'color:#d97706'}" onclick="ptSetCspCat(${i})">${escapeHtml(cat)}</div>`).join('')
+      const tpls = (cachedCspTemplates || []).filter(t => t.category === ptState.cspCategory)
+      const list = tpls.map((t, i) => {
+        const tpl = t.template
+        const allTerms = [...new Set([...hubTargets.filter(x => x.framework === 'csp' && x.description === tpl).map(x => x.planned_term), ...ptState.basket.filter(b => b.framework === 'csp' && b.description === tpl).map(b => b.term)])]
+        const activeSel = allTerms.includes(ptState.term), otherSel = !activeSel && allTerms.length > 0
+        const locked = hubTargets.some(x => x.framework === 'csp' && x.description === tpl && x.planned_term === ptState.term)
+        const style = activeSel ? 'background:#d97706;border-color:#d97706' : (otherSel ? `background:${PT_FW_LIGHT.csp};border-color:#d97706` : '')
+        const tagColour = activeSel ? '#fff' : '#d97706'
+        return `<div class="pt-eo ${activeSel ? 'on-active' : ''}" style="${style}" onclick="ptToggleCsp(${i})">
+          <div class="pt-eo-left"><div class="pt-eo-statement">${escapeHtml(tpl)}</div>${locked ? `<div class="pt-eo-saved" style="color:${activeSel ? '#fff' : '#2d8a5e'}">✓ Saved for ${ptState.term}</div>` : ''}</div>
+          ${allTerms.length ? `<div class="pt-eo-tag" style="color:${tagColour}">${ptFmtTerms(allTerms)} ✓</div>` : `<div class="pt-eo-check"></div>`}
+        </div>`
+      }).join('')
+      return `<div class="pt-sublabel">Outcome category</div><div class="pt-fwchips" style="margin-bottom:14px">${chips}</div><div class="pt-sublabel">${escapeHtml(ptState.cspCategory)} outcomes</div>${list}`
+    }
+    function ptSetCspCat(i) { const cats = [...new Set((cachedCspTemplates || []).map(t => t.category))]; ptState.cspCategory = cats[i] || null; ptRenderBody() }
+    function ptToggleCsp(i) {
+      const tpls = (cachedCspTemplates || []).filter(t => t.category === ptState.cspCategory)
+      const tpl = tpls[i]?.template
+      if (!tpl) return
+      if (hubTargets.some(x => x.framework === 'csp' && x.description === tpl && x.planned_term === ptState.term)) return
+      const key = `csp:${tpl}:${ptState.term}`
+      const idx = ptState.basket.findIndex(b => b.key === key)
+      if (idx >= 0) ptState.basket.splice(idx, 1)
+      else ptState.basket.push({ key, framework: 'csp', term: ptState.term, milestone_id: null, description: tpl, cfe_level: null, category: ptState.cspCategory || 'CSP Outcome' })
+      ptRenderChrome(); ptRenderBody()
+    }
+
+    function ptAhpHtml() {
+      const chips = PT_AHP_PROFESSIONS.map((p, i) => `<div class="pt-fwchip" style="${ptState.ahpProfession === p ? 'background:#0891b2;border-color:#0891b2;color:#fff' : 'color:#0891b2'}" onclick="ptSetAhp(${i})">${escapeHtml(p)}</div>`).join('')
+      const enabled = !!ptState.ahpProfession
+      return `<div class="pt-sublabel">AHP profession</div><div class="pt-fwchips" style="margin-bottom:16px">${chips}</div>
+        <div class="pt-sublabel" style="${enabled ? '' : 'color:#cbd5e1'}">Recommendation / target</div>
+        <textarea class="form-input" id="pt-custom" rows="4" ${enabled ? '' : 'disabled'} placeholder="${enabled ? `Describe the ${escapeHtml(ptState.ahpProfession)} recommendation…` : 'Select a profession above first…'}">${escapeHtml(ptState.custom)}</textarea>
+        <button class="btn pt-add-btn" ${enabled ? '' : 'disabled'} onclick="ptAddAhp()">+ Add to ${ptState.term} plan</button>`
+    }
+    function ptSetAhp(i) { const el = document.getElementById('pt-custom'); if (el) ptState.custom = el.value; ptState.ahpProfession = PT_AHP_PROFESSIONS[i]; ptRenderBody() }
+    function ptAddAhp() {
+      const el = document.getElementById('pt-custom'), text = (el?.value || '').trim()
+      if (!text || !ptState.ahpProfession) return
+      ptState.basket.push({ key: 'ahp:' + ptState.basket.length + ':' + text.slice(0, 12), framework: 'ahp', term: ptState.term, milestone_id: null, description: text, cfe_level: null, category: ptState.ahpProfession })
+      ptState.custom = ''
+      ptRenderChrome(); ptRenderBody()
+    }
+
+    async function ptSavePlan() {
+      if (!ptState.basket.length) return
+      const btn = document.getElementById('pt-save-btn')
+      btn.disabled = true; btn.textContent = 'Saving…'
+      const rows = ptState.basket.map(b => ({ pupil_id: currentPupil.id, framework: b.framework, category: b.category, description: b.description, cfe_level: b.cfe_level, status: 'active', planned_term: b.term, milestone_id: b.milestone_id }))
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/targets`, { method: 'POST', headers: { ...headers(session.access_token), 'Prefer': 'return=minimal' }, body: JSON.stringify(rows) })
+      if (!res.ok) { alert('Could not save targets. Please try again.'); btn.disabled = false; btn.textContent = 'Save plan'; return }
+      closeModal('modal-plan-targets')
+      await loadHubData()
+      showTab('targets')
     }
 
     // ── Builder state ──
