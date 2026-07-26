@@ -1397,6 +1397,9 @@
         <div class="sidebar-link" onclick="showView('staff')" id="nav-staff">
           <span class="sidebar-link-icon">🧑‍🏫</span> Staff &amp; Training
         </div>
+        <div class="sidebar-link" onclick="showView('classrooms')" id="nav-classrooms">
+          <span class="sidebar-link-icon">🏫</span> Classrooms
+        </div>
 
         <div class="sidebar-section">Classroom</div>
         <div class="sidebar-link" onclick="window.location.href='games.html'" id="nav-games">
@@ -1688,6 +1691,82 @@
         </div>
       </div>
 
+      <!-- WORKFORCE · CLASSROOMS -->
+      <div id="view-classrooms" style="display:none">
+        <div class="topbar">
+          <div class="topbar-title">Classrooms</div>
+          <button class="btn btn-sm" onclick="openClassEditor()">+ Add class</button>
+        </div>
+        <div class="content">
+          <div id="classrooms-list"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Add / edit classroom -->
+  <div class="modal-overlay" id="modal-class">
+    <div class="modal" style="max-width:720px">
+      <div class="modal-title" id="modal-class-title">Add class</div>
+
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Class name <span style="color:#dc2626">*</span></label>
+          <input type="text" id="class-name" class="form-input" placeholder="e.g. Class 4 / Puffins">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stage</label>
+          <input type="text" id="class-stage" class="form-input" placeholder="e.g. Upper">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Capacity</label>
+          <input type="number" id="class-capacity" class="form-input" min="0" step="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Location</label>
+          <input type="text" id="class-location" class="form-input" placeholder="e.g. Room 12">
+        </div>
+        <div class="form-group" style="grid-column:2 / -1">
+          <label class="form-label">Class teacher</label>
+          <select id="class-teacher" class="form-input"><option value="">—</option></select>
+        </div>
+      </div>
+
+      <div class="section-header" style="margin-top:0.6rem"><div class="section-title">Staffing requirements</div></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+        <div class="form-group"><label class="form-label">Min staff</label><input type="number" id="class-min" class="form-input" min="0" step="1"></div>
+        <div class="form-group"><label class="form-label">Preferred</label><input type="number" id="class-pref" class="form-input" min="0" step="1"></div>
+        <div class="form-group"><label class="form-label">Max staff</label><input type="number" id="class-max" class="form-input" min="0" step="1"></div>
+        <div class="form-group">
+          <label class="form-label">Ratio (adult : pupils)</label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="number" id="class-ratio-a" class="form-input" min="0" step="1" placeholder="1" style="width:70px">
+            <span style="color:var(--ink-soft);font-weight:700">:</span>
+            <input type="number" id="class-ratio-p" class="form-input" min="0" step="1" placeholder="3" style="width:70px">
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label">Support staff</label><input type="number" id="class-support" class="form-input" min="0" step="1"></div>
+        <div class="form-group"><label class="form-label">Floating support</label><input type="number" id="class-float" class="form-input" min="0" step="1"></div>
+        <div class="form-group"><label class="form-label">Personal care</label><input type="number" id="class-care" class="form-input" min="0" step="1"></div>
+        <div class="form-group"><label class="form-label">Medical support</label><input type="number" id="class-medical" class="form-input" min="0" step="1"></div>
+        <div class="form-group"><label class="form-label">Behaviour support</label><input type="number" id="class-behaviour" class="form-input" min="0" step="1"></div>
+        <div class="form-group"><label class="form-label">Moving &amp; handling</label><input type="number" id="class-mh" class="form-input" min="0" step="1"></div>
+      </div>
+
+      <div class="section-header"><div class="section-title">Required competencies</div></div>
+      <div style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:0.6rem">Which competencies must be covered by staff in this class.</div>
+      <div id="class-req-comps" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:0.4rem"></div>
+
+      <div class="section-header"><div class="section-title">Pupils in this class</div></div>
+      <div style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:0.6rem">Tick the pupils in this class — their passport needs feed the staffing picture.</div>
+      <div id="class-pupils" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:5px"></div>
+
+      <div class="modal-footer" style="margin-top:1rem">
+        <button class="btn" id="class-save-btn" onclick="saveClass()">Save</button>
+        <button class="btn btn-secondary" onclick="deleteClass()" id="class-delete-btn" style="display:none;background:#fdecea;color:#b91c1c;border-color:#f5c6c2">Delete</button>
+        <button class="btn btn-secondary" onclick="closeModal('modal-class')">Cancel</button>
+      </div>
     </div>
   </div>
 
@@ -2365,13 +2444,14 @@
     // going back/forward through existing history entries.
 
     function showView(view, _fromHistory) {
-      ['dashboard','pupils','hub','settings','sessions','staff'].forEach(v => {
+      ['dashboard','pupils','hub','settings','sessions','staff','classrooms'].forEach(v => {
         document.getElementById(`view-${v}`).style.display = v === view ? 'block' : 'none'
       })
-      ;['dashboard','pupils','settings','sessions','staff'].forEach(v => {
+      ;['dashboard','pupils','settings','sessions','staff','classrooms'].forEach(v => {
         document.getElementById(`nav-${v}`)?.classList.toggle('active', v === view)
       })
       if (view === 'staff') loadStaff().catch(() => {})
+      if (view === 'classrooms') loadClassrooms().catch(() => {})
       if (view === 'sessions') loadSessions()
       if (view === 'settings') populateSettingsSchool().catch(() => {})
       if (view === 'dashboard') loadAndRenderBriefing().catch(() => {})
@@ -4879,6 +4959,171 @@
       closeModal('modal-competency')
       await openStaff(sdStaff.id)
       loadStaff()
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // WORKFORCE · Classrooms + pupil linking
+    // ═══════════════════════════════════════════════════════════════════════
+    let classroomsCache = []
+    let classPupils = []           // all school pupils (id, full_name, asn_category, classroom_id)
+    let editingClassId = null
+    let classReqComps = new Set()  // competency_ids required by the class being edited
+
+    async function loadClassrooms() {
+      const list = document.getElementById('classrooms-list')
+      list.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--ink-soft)">Loading classes…</div>'
+      await getCompetencies()
+      const [cRes, pRes, sRes] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/classrooms?select=*&order=name`, { headers: headers(session.access_token) }),
+        fetch(`${SUPABASE_URL}/rest/v1/pupils?select=id,full_name,asn_category,classroom_id&order=full_name`, { headers: headers(session.access_token) }),
+        fetch(`${SUPABASE_URL}/rest/v1/staff?select=id,full_name,role&order=full_name`, { headers: headers(session.access_token) }),
+      ])
+      classroomsCache = cRes.ok ? await cRes.json() : []
+      classPupils = pRes.ok ? await pRes.json() : []
+      staffCache = sRes.ok ? await sRes.json() : staffCache
+      renderClassroomsList()
+    }
+
+    function rollCount(classId) { return classPupils.filter(p => p.classroom_id === classId).length }
+
+    function renderClassroomsList() {
+      const list = document.getElementById('classrooms-list')
+      if (!classroomsCache.length) {
+        list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏫</div><div class="empty-state-title">No classes yet</div><div class="empty-state-sub">Add your classes, set their staffing needs, and put pupils in them — the class's needs then come straight from the pupils' passports.</div></div>`
+        return
+      }
+      list.innerHTML = classroomsCache.map(c => {
+        const teacher = staffCache.find(s => s.id === c.teacher_staff_id)
+        const roll = rollCount(c.id)
+        const ratio = (c.ratio_adults && c.ratio_pupils) ? `${c.ratio_adults}:${c.ratio_pupils}` : null
+        const staffing = [c.min_staff != null ? `min ${c.min_staff}` : null, c.preferred_staff != null ? `pref ${c.preferred_staff}` : null, ratio ? `ratio ${ratio}` : null].filter(Boolean).join(' · ')
+        return `<div class="team-row" style="cursor:pointer" onclick="openClassEditor('${c.id}')">
+          <div class="team-avatar" style="background:#e7f0fb;color:#1f5591">${escapeHtml((c.name||'?').slice(0,2).toUpperCase())}</div>
+          <div style="flex:1">
+            <div class="team-name">${escapeHtml(c.name)}${c.stage ? ` <span class="badge" style="background:#eef2f7;color:#64748b">${escapeHtml(c.stage)}</span>` : ''}</div>
+            <div class="team-role">${teacher ? escapeHtml(teacher.full_name) : 'No teacher set'}${c.location ? ' · ' + escapeHtml(c.location) : ''}${staffing ? ' · ' + staffing : ''}</div>
+          </div>
+          <div style="text-align:right;font-size:0.8rem">
+            <span class="badge badge-green">${roll}${c.capacity ? '/' + c.capacity : ''} pupils</span>
+          </div>
+        </div>`
+      }).join('')
+    }
+
+    async function openClassEditor(id) {
+      editingClassId = id || null
+      await getCompetencies()
+      if (!classPupils.length || !staffCache.length) {
+        const [pRes, sRes] = await Promise.all([
+          fetch(`${SUPABASE_URL}/rest/v1/pupils?select=id,full_name,asn_category,classroom_id&order=full_name`, { headers: headers(session.access_token) }),
+          fetch(`${SUPABASE_URL}/rest/v1/staff?select=id,full_name,role&order=full_name`, { headers: headers(session.access_token) }),
+        ])
+        if (pRes.ok) classPupils = await pRes.json()
+        if (sRes.ok) staffCache = await sRes.json()
+      }
+      const c = id ? classroomsCache.find(x => x.id === id) : null
+      document.getElementById('modal-class-title').textContent = c ? 'Edit class' : 'Add class'
+      document.getElementById('class-delete-btn').style.display = c ? 'inline-flex' : 'none'
+      const set = (el, v) => document.getElementById(el).value = v ?? ''
+      set('class-name', c?.name); set('class-stage', c?.stage); set('class-capacity', c?.capacity); set('class-location', c?.location)
+      set('class-min', c?.min_staff); set('class-pref', c?.preferred_staff); set('class-max', c?.max_staff)
+      set('class-ratio-a', c?.ratio_adults); set('class-ratio-p', c?.ratio_pupils)
+      set('class-support', c?.support_required); set('class-float', c?.floating_support); set('class-care', c?.personal_care_support)
+      set('class-medical', c?.medical_support); set('class-behaviour', c?.behaviour_support); set('class-mh', c?.moving_handling_support)
+
+      // teacher dropdown
+      document.getElementById('class-teacher').innerHTML = '<option value="">—</option>' +
+        staffCache.map(s => `<option value="${s.id}" ${c && c.teacher_staff_id === s.id ? 'selected' : ''}>${escapeHtml(s.full_name)}${s.role ? ' · ' + (ROLE_LABEL[s.role] || s.role) : ''}</option>`).join('')
+
+      // required competencies
+      classReqComps = new Set()
+      if (id) {
+        const rc = await fetch(`${SUPABASE_URL}/rest/v1/classroom_required_competencies?classroom_id=eq.${id}&select=competency_id`, { headers: headers(session.access_token) })
+        if (rc.ok) (await rc.json()).forEach(r => classReqComps.add(r.competency_id))
+      }
+      renderReqComps()
+
+      // pupils
+      document.getElementById('class-pupils').innerHTML = classPupils.length
+        ? classPupils.map(p => {
+            const checked = p.classroom_id === id
+            const other = p.classroom_id && p.classroom_id !== id ? classroomsCache.find(cc => cc.id === p.classroom_id) : null
+            return `<label style="display:flex;align-items:center;gap:9px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;cursor:pointer">
+              <input type="checkbox" class="class-pupil-cb" value="${p.id}" ${checked ? 'checked' : ''}>
+              <span style="flex:1;font-size:0.86rem">${escapeHtml(p.full_name)}</span>
+              ${other ? `<span style="font-size:0.72rem;color:#d97706">in ${escapeHtml(other.name)}</span>` : ''}
+              <span style="font-size:0.72rem;color:var(--ink-soft)">${escapeHtml((p.asn_category||'').split(',')[0]||'')}</span>
+            </label>`
+          }).join('')
+        : '<div style="font-size:0.82rem;color:var(--ink-soft);font-style:italic">No pupils yet — add pupils under My Pupils first.</div>'
+
+      document.getElementById('modal-class').style.display = 'flex'
+    }
+
+    function renderReqComps() {
+      document.getElementById('class-req-comps').innerHTML = competencyCache.map(c => {
+        const on = classReqComps.has(c.id)
+        return `<span class="uv-chip ${on ? 'on' : ''}" style="cursor:pointer" onclick="toggleReqComp('${c.id}')">${on ? '✓ ' : ''}${escapeHtml(c.name)}</span>`
+      }).join('')
+    }
+    function toggleReqComp(id) { classReqComps.has(id) ? classReqComps.delete(id) : classReqComps.add(id); renderReqComps() }
+
+    async function saveClass() {
+      const name = document.getElementById('class-name').value.trim()
+      if (!name) { alert('Please enter a class name.'); return }
+      const num = (id) => { const v = document.getElementById(id).value; return v === '' ? null : Number(v) }
+      const body = {
+        name, stage: document.getElementById('class-stage').value.trim() || null,
+        capacity: num('class-capacity'), location: document.getElementById('class-location').value.trim() || null,
+        teacher_staff_id: document.getElementById('class-teacher').value || null,
+        min_staff: num('class-min'), preferred_staff: num('class-pref'), max_staff: num('class-max'),
+        ratio_adults: num('class-ratio-a'), ratio_pupils: num('class-ratio-p'),
+        support_required: num('class-support'), floating_support: num('class-float'), personal_care_support: num('class-care'),
+        medical_support: num('class-medical'), behaviour_support: num('class-behaviour'), moving_handling_support: num('class-mh'),
+      }
+      const btn = document.getElementById('class-save-btn'); btn.disabled = true; btn.textContent = 'Saving…'
+      let classId = editingClassId
+      try {
+        if (editingClassId) {
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/classrooms?id=eq.${editingClassId}`, { method:'PATCH', headers:{ ...headers(session.access_token), 'Prefer':'return=minimal' }, body: JSON.stringify(body) })
+          if (!r.ok) throw new Error()
+        } else {
+          body.school_id = currentProfile.school_id
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/classrooms`, { method:'POST', headers:{ ...headers(session.access_token), 'Prefer':'return=representation' }, body: JSON.stringify(body) })
+          if (!r.ok) throw new Error()
+          classId = (await r.json())[0].id
+        }
+        // required competencies — replace the set
+        await fetch(`${SUPABASE_URL}/rest/v1/classroom_required_competencies?classroom_id=eq.${classId}`, { method:'DELETE', headers: headers(session.access_token) })
+        if (classReqComps.size) {
+          await fetch(`${SUPABASE_URL}/rest/v1/classroom_required_competencies`, { method:'POST', headers:{ ...headers(session.access_token), 'Prefer':'return=minimal' },
+            body: JSON.stringify([...classReqComps].map(cid => ({ classroom_id: classId, competency_id: cid }))) })
+        }
+        // pupil assignment
+        const checked = [...document.querySelectorAll('.class-pupil-cb:checked')].map(cb => cb.value)
+        if (checked.length) {
+          await fetch(`${SUPABASE_URL}/rest/v1/pupils?id=in.(${checked.join(',')})`, { method:'PATCH', headers:{ ...headers(session.access_token), 'Prefer':'return=minimal' }, body: JSON.stringify({ classroom_id: classId }) })
+        }
+        // unassign pupils removed from this class
+        const removed = classPupils.filter(p => p.classroom_id === classId && !checked.includes(p.id)).map(p => p.id)
+        if (removed.length) {
+          await fetch(`${SUPABASE_URL}/rest/v1/pupils?id=in.(${removed.join(',')})`, { method:'PATCH', headers:{ ...headers(session.access_token), 'Prefer':'return=minimal' }, body: JSON.stringify({ classroom_id: null }) })
+        }
+      } catch (e) {
+        btn.disabled = false; btn.textContent = 'Save'
+        alert('Could not save the class. Please try again.'); return
+      }
+      btn.disabled = false; btn.textContent = 'Save'
+      closeModal('modal-class')
+      await loadClassrooms()
+    }
+
+    async function deleteClass() {
+      if (!editingClassId) return
+      if (!confirm('Delete this class? Pupils and staff stay, but they will no longer be linked to it.')) return
+      await fetch(`${SUPABASE_URL}/rest/v1/classrooms?id=eq.${editingClassId}`, { method:'DELETE', headers: headers(session.access_token) })
+      closeModal('modal-class')
+      await loadClassrooms()
     }
 
     // ── Open builder (new or edit) ──
