@@ -1400,6 +1400,9 @@
         <div class="sidebar-link" onclick="showView('classrooms')" id="nav-classrooms">
           <span class="sidebar-link-icon">🏫</span> Classrooms
         </div>
+        <div class="sidebar-link" onclick="showView('timetable')" id="nav-timetable">
+          <span class="sidebar-link-icon">🗓️</span> Timetable
+        </div>
 
         <div class="sidebar-section">Classroom</div>
         <div class="sidebar-link" onclick="window.location.href='games.html'" id="nav-games">
@@ -1702,6 +1705,72 @@
         </div>
       </div>
 
+      <!-- WORKFORCE · TIMETABLE (setup) -->
+      <div id="view-timetable" style="display:none">
+        <div class="topbar">
+          <div class="topbar-title">Timetable</div>
+          <button class="btn btn-sm" onclick="openPeriodEditor()">+ Add period</button>
+        </div>
+        <div class="content">
+          <div class="passport-section" style="margin-bottom:1.4rem">
+            <div class="passport-section-title">📅 Academic year &amp; school day</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+              <div class="form-group"><label class="form-label">Year starts</label><input type="date" id="cfg-year-start" class="form-input" onchange="saveSchoolConfig()"></div>
+              <div class="form-group"><label class="form-label">Year ends</label><input type="date" id="cfg-year-end" class="form-input" onchange="saveSchoolConfig()"></div>
+              <div class="form-group"><label class="form-label">Day starts</label><input type="time" id="cfg-day-start" class="form-input" onchange="saveSchoolConfig()"></div>
+              <div class="form-group"><label class="form-label">Day ends</label><input type="time" id="cfg-day-end" class="form-input" onchange="saveSchoolConfig()"></div>
+            </div>
+            <div id="cfg-saved" style="font-size:0.75rem;color:var(--green-mid);height:16px"></div>
+          </div>
+
+          <div class="section-header">
+            <div class="section-title">The school day</div>
+            <button class="btn btn-sm btn-secondary" id="tt-quickstart" onclick="addTypicalDay()">Add a typical day</button>
+          </div>
+          <div id="periods-list"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Add / edit period -->
+  <div class="modal-overlay" id="modal-period">
+    <div class="modal" style="max-width:520px">
+      <div class="modal-title" id="modal-period-title">Add period</div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Name <span style="color:#dc2626">*</span></label>
+          <input type="text" id="period-name" class="form-input" placeholder="e.g. Session 1 / Morning break">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <select id="period-kind" class="form-input">
+            <option value="registration">Registration</option>
+            <option value="teaching">Teaching</option>
+            <option value="break">Break</option>
+            <option value="lunch">Lunch</option>
+            <option value="assembly">Assembly</option>
+            <option value="therapy">Therapy</option>
+            <option value="swimming">Swimming / Hydro</option>
+            <option value="outdoor">Outdoor learning</option>
+            <option value="offsite">Off-site</option>
+            <option value="transport">Transport</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Start</label><input type="time" id="period-start" class="form-input"></div>
+        <div class="form-group"><label class="form-label">End</label><input type="time" id="period-end" class="form-input"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Days</label>
+        <div id="period-days" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="savePeriod()">Save</button>
+        <button class="btn btn-secondary" onclick="deletePeriod()" id="period-delete-btn" style="display:none;background:#fdecea;color:#b91c1c;border-color:#f5c6c2">Delete</button>
+        <button class="btn btn-secondary" onclick="closeModal('modal-period')">Cancel</button>
+      </div>
     </div>
   </div>
 
@@ -2444,14 +2513,15 @@
     // going back/forward through existing history entries.
 
     function showView(view, _fromHistory) {
-      ['dashboard','pupils','hub','settings','sessions','staff','classrooms'].forEach(v => {
+      ['dashboard','pupils','hub','settings','sessions','staff','classrooms','timetable'].forEach(v => {
         document.getElementById(`view-${v}`).style.display = v === view ? 'block' : 'none'
       })
-      ;['dashboard','pupils','settings','sessions','staff','classrooms'].forEach(v => {
+      ;['dashboard','pupils','settings','sessions','staff','classrooms','timetable'].forEach(v => {
         document.getElementById(`nav-${v}`)?.classList.toggle('active', v === view)
       })
       if (view === 'staff') loadStaff().catch(() => {})
       if (view === 'classrooms') loadClassrooms().catch(() => {})
+      if (view === 'timetable') loadTimetable().catch(() => {})
       if (view === 'sessions') loadSessions()
       if (view === 'settings') populateSettingsSchool().catch(() => {})
       if (view === 'dashboard') loadAndRenderBriefing().catch(() => {})
@@ -5124,6 +5194,142 @@
       await fetch(`${SUPABASE_URL}/rest/v1/classrooms?id=eq.${editingClassId}`, { method:'DELETE', headers: headers(session.access_token) })
       closeModal('modal-class')
       await loadClassrooms()
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // WORKFORCE · Timetable setup (school day + periods)
+    // ═══════════════════════════════════════════════════════════════════════
+    const TT_DAYS = [['mon','Mon'],['tue','Tue'],['wed','Wed'],['thu','Thu'],['fri','Fri']]
+    const PERIOD_KIND = { registration:'Registration', teaching:'Teaching', break:'Break', lunch:'Lunch', assembly:'Assembly', therapy:'Therapy', swimming:'Swimming', outdoor:'Outdoor', offsite:'Off-site', transport:'Transport', other:'Other' }
+    const PERIOD_COLOUR = { teaching:'#2d8a5e', registration:'#64748b', break:'#d97706', lunch:'#d97706', assembly:'#7c3aed', therapy:'#0891b2', swimming:'#0891b2', outdoor:'#639922', offsite:'#c026d3', transport:'#64748b', other:'#64748b' }
+    let periodsCache = []
+    let editingPeriodId = null
+    let periodDays = new Set()
+    const hhmm = (t) => t ? t.slice(0,5) : ''
+    const mins = (t) => { if (!t) return 9999; const [h,m] = t.split(':'); return (+h)*60 + (+m) }
+
+    async function loadTimetable() {
+      const [cRes, pRes] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/school_config?school_id=eq.${currentProfile.school_id}&select=*`, { headers: headers(session.access_token) }),
+        fetch(`${SUPABASE_URL}/rest/v1/timetable_periods?select=*&order=sort_order`, { headers: headers(session.access_token) }),
+      ])
+      const cfg = (cRes.ok ? await cRes.json() : [])[0] || {}
+      document.getElementById('cfg-year-start').value = cfg.academic_year_start || ''
+      document.getElementById('cfg-year-end').value = cfg.academic_year_end || ''
+      document.getElementById('cfg-day-start').value = hhmm(cfg.day_start)
+      document.getElementById('cfg-day-end').value = hhmm(cfg.day_end)
+      periodsCache = pRes.ok ? await pRes.json() : []
+      renderPeriods()
+    }
+
+    async function saveSchoolConfig() {
+      const body = {
+        school_id: currentProfile.school_id,
+        academic_year_start: document.getElementById('cfg-year-start').value || null,
+        academic_year_end: document.getElementById('cfg-year-end').value || null,
+        day_start: document.getElementById('cfg-day-start').value || null,
+        day_end: document.getElementById('cfg-day-end').value || null,
+        updated_at: new Date().toISOString(),
+      }
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/school_config`, {
+        method: 'POST',
+        headers: { ...headers(session.access_token), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify(body),
+      })
+      const el = document.getElementById('cfg-saved')
+      el.textContent = r.ok ? 'Saved ✓' : 'Could not save'
+      setTimeout(() => el.textContent = '', 1800)
+    }
+
+    function renderPeriods() {
+      const list = document.getElementById('periods-list')
+      document.getElementById('tt-quickstart').style.display = periodsCache.length ? 'none' : 'inline-flex'
+      if (!periodsCache.length) {
+        list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🗓️</div><div class="empty-state-title">No school day yet</div><div class="empty-state-sub">Add the periods of your day (sessions, breaks, lunch, therapy, transport) — or start from a typical day and tweak it.</div></div>`
+        return
+      }
+      const sorted = [...periodsCache].sort((a,b) => (a.sort_order ?? mins(a.start_time)) - (b.sort_order ?? mins(b.start_time)))
+      list.innerHTML = sorted.map(p => {
+        const col = PERIOD_COLOUR[p.kind] || '#64748b'
+        const days = (p.days || []).map(d => (TT_DAYS.find(x => x[0] === d) || [d,d])[1]).join(' ')
+        const allWeek = (p.days || []).length === 5
+        return `<div class="team-row" style="cursor:pointer" onclick="openPeriodEditor('${p.id}')">
+          <div style="width:6px;height:38px;border-radius:3px;background:${col};flex:none"></div>
+          <div style="flex:1;margin-left:10px">
+            <div class="team-name">${escapeHtml(p.name)} <span class="badge" style="background:${col}22;color:${col}">${PERIOD_KIND[p.kind] || p.kind}</span></div>
+            <div class="team-role">${hhmm(p.start_time)}${p.end_time ? '–' + hhmm(p.end_time) : ''}${' · ' + (allWeek ? 'Mon–Fri' : (days || '—'))}</div>
+          </div>
+        </div>`
+      }).join('')
+    }
+
+    function renderPeriodDays() {
+      document.getElementById('period-days').innerHTML = TT_DAYS.map(([code,label]) =>
+        `<span class="uv-chip ${periodDays.has(code) ? 'on' : ''}" style="cursor:pointer;min-width:52px;text-align:center;justify-content:center" onclick="togglePeriodDay('${code}')">${label}</span>`).join('')
+    }
+    function togglePeriodDay(code) { periodDays.has(code) ? periodDays.delete(code) : periodDays.add(code); renderPeriodDays() }
+
+    function openPeriodEditor(id) {
+      editingPeriodId = id || null
+      const p = id ? periodsCache.find(x => x.id === id) : null
+      document.getElementById('modal-period-title').textContent = p ? 'Edit period' : 'Add period'
+      document.getElementById('period-delete-btn').style.display = p ? 'inline-flex' : 'none'
+      document.getElementById('period-name').value = p?.name || ''
+      document.getElementById('period-kind').value = p?.kind || 'teaching'
+      document.getElementById('period-start').value = hhmm(p?.start_time)
+      document.getElementById('period-end').value = hhmm(p?.end_time)
+      periodDays = new Set(p?.days || ['mon','tue','wed','thu','fri'])
+      renderPeriodDays()
+      document.getElementById('modal-period').style.display = 'flex'
+    }
+
+    async function savePeriod() {
+      const name = document.getElementById('period-name').value.trim()
+      if (!name) { alert('Please enter a name.'); return }
+      const start = document.getElementById('period-start').value || null
+      const body = {
+        name, kind: document.getElementById('period-kind').value,
+        start_time: start, end_time: document.getElementById('period-end').value || null,
+        days: [...periodDays], sort_order: start ? mins(start) : 999,
+      }
+      let ok = false
+      try {
+        if (editingPeriodId) {
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/timetable_periods?id=eq.${editingPeriodId}`, { method:'PATCH', headers:{ ...headers(session.access_token), 'Prefer':'return=minimal' }, body: JSON.stringify(body) })
+          ok = r.ok
+        } else {
+          body.school_id = currentProfile.school_id
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/timetable_periods`, { method:'POST', headers:{ ...headers(session.access_token), 'Prefer':'return=minimal' }, body: JSON.stringify(body) })
+          ok = r.ok
+        }
+      } catch (e) {}
+      if (!ok) { alert('Could not save the period. Please try again.'); return }
+      closeModal('modal-period')
+      await loadTimetable()
+    }
+
+    async function deletePeriod() {
+      if (!editingPeriodId) return
+      await fetch(`${SUPABASE_URL}/rest/v1/timetable_periods?id=eq.${editingPeriodId}`, { method:'DELETE', headers: headers(session.access_token) })
+      closeModal('modal-period')
+      await loadTimetable()
+    }
+
+    async function addTypicalDay() {
+      const wk = ['mon','tue','wed','thu','fri']
+      const rows = [
+        ['Registration','registration','09:00','09:15'],
+        ['Session 1','teaching','09:15','10:30'],
+        ['Morning break','break','10:30','10:45'],
+        ['Session 2','teaching','10:45','12:00'],
+        ['Lunch','lunch','12:00','13:00'],
+        ['Session 3','teaching','13:00','14:00'],
+        ['Afternoon break','break','14:00','14:10'],
+        ['Session 4','teaching','14:10','15:00'],
+        ['Home time','transport','15:00','15:15'],
+      ].map(([name,kind,s,e]) => ({ school_id: currentProfile.school_id, name, kind, start_time: s, end_time: e, days: wk, sort_order: mins(s) }))
+      await fetch(`${SUPABASE_URL}/rest/v1/timetable_periods`, { method:'POST', headers:{ ...headers(session.access_token), 'Prefer':'return=minimal' }, body: JSON.stringify(rows) })
+      await loadTimetable()
     }
 
     // ── Open builder (new or edit) ──
