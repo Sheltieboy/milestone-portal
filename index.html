@@ -5522,14 +5522,23 @@
       renderAbsenceChips()
     }
 
-    function computeCover() {
+    async function computeCover() {
+      const out = document.getElementById('cover-result')
+      out.innerHTML = coverMsg('Recalculating…')
+      try {
       const date = document.getElementById('cover-date').value
       const wd = ttWeekdayOf(date)
-      const out = document.getElementById('cover-result')
-      if (!wd) { out.innerHTML = coverMsg('That date is a weekend — pick a school day.'); return }
+      if (!wd) { out.innerHTML = coverMsg('That date is a weekend — pick a school day (Mon–Fri).'); return }
+      // re-sync absences to the chosen date (in case the date changed after marking)
+      const ar = await fetch(`${SUPABASE_URL}/rest/v1/staff_absences?absence_date=eq.${date}&select=*`, { headers: headers(session.access_token) })
+      if (ar.ok) { coverAbsences = await ar.json(); renderAbsenceChips() }
       const absentIds = new Set(coverAbsences.map(a => a.staff_id))
+      if (!absentIds.size) { out.innerHTML = coverMsg("No one is marked absent for this date — click a name under <b>Who's absent?</b> so it ticks green, then Recalculate."); return }
+      if (!staffCache.length) { out.innerHTML = coverMsg('No staff found — add them under Staff &amp; Training first.'); return }
+      if (!classroomsCache.filter(c => c.active !== false).length) { out.innerHTML = coverMsg('No classes found — add them under Classrooms first.'); return }
       const periods = periodsCache.filter(p => ['teaching','therapy','swimming','outdoor','offsite'].includes(p.kind) && (p.days || []).includes(wd))
         .sort((a,b) => (a.sort_order ?? mins(a.start_time)) - (b.sort_order ?? mins(b.start_time)))
+      if (!periods.length) { out.innerHTML = coverMsg('No teaching periods run on ' + (TT_DAYS.find(d => d[0] === wd) || ['',''])[1] + ' — check the school day / that periods run this weekday.'); return }
       const classes = classroomsCache.filter(c => c.active !== false)
       // effective (recurring for the weekday + any existing cover for the date) minus absentees
       let work = ttAssignments
@@ -5566,6 +5575,9 @@
       })
       coverPlan = plan
       renderCover(plan, unresolved, absentIds)
+      } catch (e) {
+        out.innerHTML = coverMsg('Couldn’t recalculate cover: ' + escapeHtml(e && e.message ? e.message : String(e)))
+      }
     }
 
     function renderCover(plan, unresolved, absentIds) {
