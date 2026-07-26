@@ -5565,7 +5565,7 @@
             }).sort((a,b) => b.score - a.score)
             let pick = missing ? (scored.find(x => staffHolds(x.sid, missing)) || null) : null
             if (!pick) pick = scored[0] || null
-            if (!pick) { unresolved.push({ p, c, comp }); break }
+            if (!pick) { unresolved.push({ period: p, cls: c, comp }); break }
             work.push({ period_id: p.id, classroom_id: c.id, staff_id: pick.sid })
             freePool = freePool.filter(id => id !== pick.sid)
             plan.push({ staffId: pick.sid, staff: pick.s, periodId: p.id, period: p, classId: c.id, cls: c, reasons: pick.reasons })
