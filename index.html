@@ -812,6 +812,26 @@
     .pt-search { width: 100%; margin-bottom: 12px; }
     .pt-add-btn { width: 100%; margin-top: 10px; }
     .pt-fieldhint { font-size: 0.75rem; color: var(--ink-soft); margin: 2px 0 6px; line-height: 1.4; }
+    /* Timetable */
+    .tt-subtabs { display: flex; gap: 6px; background: #eef4ef; border-radius: 10px; padding: 4px; margin-bottom: 1.2rem; width: fit-content; }
+    .tt-subtab { border: none; background: none; padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: var(--ink-soft); cursor: pointer; font-family: inherit; }
+    .tt-subtab.active { background: #fff; color: var(--green-deep); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    .tt-daytab { padding: 8px 18px; border-radius: 9px; border: 1px solid var(--border); background: #fff; font-size: 0.85rem; font-weight: 600; color: var(--ink-soft); cursor: pointer; font-family: inherit; }
+    .tt-daytab.active { background: var(--green-deep); border-color: var(--green-deep); color: #fff; }
+    .tt-grid-table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 720px; }
+    .tt-grid-table th, .tt-grid-table td { border: 1px solid var(--border); vertical-align: top; padding: 0; }
+    .tt-grid-table thead th { background: #f4f9f5; padding: 10px; font-size: 0.78rem; font-weight: 700; color: var(--green-deep); text-align: left; position: sticky; top: 0; }
+    .tt-per-cell { background: #fbfdfc; padding: 10px; width: 150px; }
+    .tt-per-name { font-size: 0.82rem; font-weight: 700; color: var(--ink); }
+    .tt-per-time { font-size: 0.72rem; color: var(--ink-soft); }
+    .tt-cell { padding: 8px; min-width: 150px; }
+    .tt-assign-chip { display: inline-flex; align-items: center; gap: 5px; background: #e7f3ec; color: #1a5c3a; border-radius: 7px; padding: 3px 8px; font-size: 0.76rem; font-weight: 600; margin: 0 4px 4px 0; cursor: pointer; }
+    .tt-assign-chip .x { color: #6b8578; font-weight: 700; }
+    .tt-add-btn { display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--green-mid); color: var(--green-mid); background: transparent; border-radius: 7px; padding: 3px 9px; font-size: 0.74rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .tt-add-btn:hover { background: var(--green-soft, #e7f3ec); }
+    .assign-staff-row { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 9px; cursor: pointer; }
+    .assign-staff-row:hover { border-color: var(--green-mid); background: #f4f9f5; }
+    .assign-staff-row.assigned { background: #e7f3ec; border-color: var(--green-mid); }
     .pt-batch-card { background: #fbfdfc; border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
     .pt-batch-cardhead { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
     .pt-batch-remove { margin-left: auto; background: none; border: none; color: #b91c1c; font-size: 0.78rem; font-weight: 600; cursor: pointer; padding: 2px 4px; }
@@ -1723,14 +1743,38 @@
             <div id="cfg-saved" style="font-size:0.75rem;color:var(--green-mid);height:16px"></div>
           </div>
 
-          <div class="section-header">
-            <div class="section-title">The school day</div>
-            <button class="btn btn-sm btn-secondary" id="tt-quickstart" onclick="addTypicalDay()">Add a typical day</button>
+          <div class="tt-subtabs">
+            <button class="tt-subtab active" id="ttsub-day" onclick="ttShowSub('day')">School day</button>
+            <button class="tt-subtab" id="ttsub-grid" onclick="ttShowSub('grid')">Weekly grid</button>
           </div>
-          <div id="periods-list"></div>
+
+          <div id="tt-sub-day">
+            <div class="section-header">
+              <div class="section-title">The school day</div>
+              <button class="btn btn-sm btn-secondary" id="tt-quickstart" onclick="addTypicalDay()">Add a typical day</button>
+            </div>
+            <div id="periods-list"></div>
+          </div>
+
+          <div id="tt-sub-grid" style="display:none">
+            <div id="tt-day-tabs" style="display:flex;gap:6px;margin-bottom:14px"></div>
+            <div id="tt-grid" style="overflow-x:auto"></div>
+          </div>
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- Assign staff to a timetable cell -->
+  <div class="modal-overlay" id="modal-assign">
+    <div class="modal" style="max-width:460px">
+      <div class="modal-title" id="assign-title">Assign staff</div>
+      <div id="assign-sub" style="font-size:0.82rem;color:var(--ink-soft);margin-bottom:0.8rem"></div>
+      <div id="assign-list" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-assign')">Done</button>
+      </div>
     </div>
   </div>
 
@@ -5208,10 +5252,17 @@
     const hhmm = (t) => t ? t.slice(0,5) : ''
     const mins = (t) => { if (!t) return 9999; const [h,m] = t.split(':'); return (+h)*60 + (+m) }
 
+    let ttSelectedDay = 'mon'
+    let ttAssignments = []
+    let ttAssignTarget = null
+
     async function loadTimetable() {
-      const [cRes, pRes] = await Promise.all([
+      const [cRes, pRes, clRes, sRes, aRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/school_config?school_id=eq.${currentProfile.school_id}&select=*`, { headers: headers(session.access_token) }),
         fetch(`${SUPABASE_URL}/rest/v1/timetable_periods?select=*&order=sort_order`, { headers: headers(session.access_token) }),
+        fetch(`${SUPABASE_URL}/rest/v1/classrooms?select=*&order=name`, { headers: headers(session.access_token) }),
+        fetch(`${SUPABASE_URL}/rest/v1/staff?select=id,full_name,role&order=full_name`, { headers: headers(session.access_token) }),
+        fetch(`${SUPABASE_URL}/rest/v1/timetable_assignments?select=*`, { headers: headers(session.access_token) }),
       ])
       const cfg = (cRes.ok ? await cRes.json() : [])[0] || {}
       document.getElementById('cfg-year-start').value = cfg.academic_year_start || ''
@@ -5219,7 +5270,93 @@
       document.getElementById('cfg-day-start').value = hhmm(cfg.day_start)
       document.getElementById('cfg-day-end').value = hhmm(cfg.day_end)
       periodsCache = pRes.ok ? await pRes.json() : []
+      classroomsCache = clRes.ok ? await clRes.json() : classroomsCache
+      staffCache = sRes.ok ? await sRes.json() : staffCache
+      ttAssignments = aRes.ok ? await aRes.json() : []
       renderPeriods()
+      renderDayTabs()
+      renderGrid()
+    }
+
+    function ttShowSub(which) {
+      document.getElementById('tt-sub-day').style.display = which === 'day' ? 'block' : 'none'
+      document.getElementById('tt-sub-grid').style.display = which === 'grid' ? 'block' : 'none'
+      document.getElementById('ttsub-day').classList.toggle('active', which === 'day')
+      document.getElementById('ttsub-grid').classList.toggle('active', which === 'grid')
+    }
+
+    function renderDayTabs() {
+      document.getElementById('tt-day-tabs').innerHTML = TT_DAYS.map(([code,label]) =>
+        `<button class="tt-daytab ${ttSelectedDay === code ? 'active' : ''}" onclick="ttSetDay('${code}')">${label}</button>`).join('')
+    }
+    function ttSetDay(d) { ttSelectedDay = d; renderDayTabs(); renderGrid() }
+
+    function cellAssignments(periodId, classroomId) {
+      return ttAssignments.filter(a => a.period_id === periodId && a.classroom_id === classroomId && a.day === ttSelectedDay)
+    }
+
+    function renderGrid() {
+      const grid = document.getElementById('tt-grid')
+      const classes = classroomsCache.filter(c => c.active !== false)
+      const periods = [...periodsCache].filter(p => (p.days || []).includes(ttSelectedDay)).sort((a,b) => (a.sort_order ?? mins(a.start_time)) - (b.sort_order ?? mins(b.start_time)))
+      if (!periods.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-state-sub">No periods run on this day. Add them under School day.</div></div>`; return }
+      if (!classes.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-state-sub">No classes yet. Add classes under Classrooms first.</div></div>`; return }
+      const staffName = (id) => (staffCache.find(s => s.id === id)?.full_name) || '?'
+      let html = '<table class="tt-grid-table"><thead><tr><th>Period</th>' +
+        classes.map(c => `<th>${escapeHtml(c.name)}</th>`).join('') + '</tr></thead><tbody>'
+      periods.forEach(p => {
+        html += `<tr><td class="tt-per-cell"><div class="tt-per-name">${escapeHtml(p.name)}</div><div class="tt-per-time">${hhmm(p.start_time)}${p.end_time ? '–' + hhmm(p.end_time) : ''}</div></td>`
+        classes.forEach(c => {
+          const asg = cellAssignments(p.id, c.id)
+          html += `<td class="tt-cell">${asg.map(a => `<span class="tt-assign-chip" onclick="removeAssignment('${a.id}')" title="Remove">${escapeHtml(staffName(a.staff_id))} <span class="x">✕</span></span>`).join('')}<button class="tt-add-btn" onclick="openAssign('${p.id}','${c.id}')">+ staff</button></td>`
+        })
+        html += '</tr>'
+      })
+      grid.innerHTML = html + '</tbody></table>'
+    }
+
+    function openAssign(periodId, classroomId) {
+      ttAssignTarget = { periodId, classroomId, day: ttSelectedDay }
+      const period = periodsCache.find(p => p.id === periodId)
+      const cls = classroomsCache.find(c => c.id === classroomId)
+      document.getElementById('assign-title').textContent = 'Assign staff'
+      document.getElementById('assign-sub').textContent = `${cls ? cls.name : ''} · ${period ? period.name : ''} · ${(TT_DAYS.find(d => d[0] === ttSelectedDay) || ['',''])[1]}`
+      renderAssignList()
+      document.getElementById('modal-assign').style.display = 'flex'
+    }
+
+    function renderAssignList() {
+      const asg = cellAssignments(ttAssignTarget.periodId, ttAssignTarget.classroomId)
+      const assignedIds = new Set(asg.map(a => a.staff_id))
+      document.getElementById('assign-list').innerHTML = staffCache.map(s => {
+        const on = assignedIds.has(s.id)
+        return `<div class="assign-staff-row ${on ? 'assigned' : ''}" onclick="toggleAssign('${s.id}')">
+          <span style="flex:1;font-size:0.87rem;font-weight:${on ? 600 : 400}">${escapeHtml(s.full_name)}</span>
+          <span style="font-size:0.75rem;color:var(--ink-soft)">${ROLE_LABEL[s.role] || s.role || ''}</span>
+          <span style="color:var(--green-mid);font-weight:700">${on ? '✓' : '+'}</span>
+        </div>`
+      }).join('') || '<div style="color:var(--ink-soft);font-size:0.85rem">No staff yet — add them under Staff &amp; Training.</div>'
+    }
+
+    async function toggleAssign(staffId) {
+      const t = ttAssignTarget
+      const existing = ttAssignments.find(a => a.period_id === t.periodId && a.classroom_id === t.classroomId && a.day === t.day && a.staff_id === staffId)
+      if (existing) {
+        await fetch(`${SUPABASE_URL}/rest/v1/timetable_assignments?id=eq.${existing.id}`, { method:'DELETE', headers: headers(session.access_token) })
+        ttAssignments = ttAssignments.filter(a => a.id !== existing.id)
+      } else {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/timetable_assignments`, { method:'POST', headers:{ ...headers(session.access_token), 'Prefer':'return=representation' },
+          body: JSON.stringify({ school_id: currentProfile.school_id, period_id: t.periodId, classroom_id: t.classroomId, staff_id: staffId, day: t.day }) })
+        if (r.ok) ttAssignments.push((await r.json())[0])
+      }
+      renderAssignList()
+      renderGrid()
+    }
+
+    async function removeAssignment(id) {
+      await fetch(`${SUPABASE_URL}/rest/v1/timetable_assignments?id=eq.${id}`, { method:'DELETE', headers: headers(session.access_token) })
+      ttAssignments = ttAssignments.filter(a => a.id !== id)
+      renderGrid()
     }
 
     async function saveSchoolConfig() {
