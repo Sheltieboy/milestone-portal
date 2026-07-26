@@ -5489,7 +5489,11 @@
 
     async function initCover() {
       const el = document.getElementById('cover-date')
-      if (!el.value) el.value = new Date().toISOString().slice(0,10)
+      if (!el.value) {
+        const d = new Date()
+        while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1)  // roll off weekends
+        el.value = d.toISOString().slice(0,10)
+      }
       await loadCover()
     }
     async function loadCover() {
