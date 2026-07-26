@@ -832,6 +832,18 @@
     .assign-staff-row { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 9px; cursor: pointer; }
     .assign-staff-row:hover { border-color: var(--green-mid); background: #f4f9f5; }
     .assign-staff-row.assigned { background: #e7f3ec; border-color: var(--green-mid); }
+    .tt-compliance { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-bottom: 6px; }
+    .tt-rag { display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; }
+    .tt-rag-green { background: #e6f4ec; color: #1a7a45; }
+    .tt-rag-amber { background: #fdf0d8; color: #b5730a; }
+    .tt-rag-red   { background: #fdeaea; color: #c0322f; }
+    .tt-rag-none  { background: #f1f5f4; color: #94a3b8; }
+    .tt-gap { font-size: 0.7rem; font-weight: 600; color: #c0322f; background: #fdeaea; border-radius: 6px; padding: 2px 6px; }
+    .tt-cell.rag-red { box-shadow: inset 3px 0 0 #dc2626; }
+    .tt-cell.rag-amber { box-shadow: inset 3px 0 0 #d97706; }
+    .tt-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: #fbfdfc; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
+    .tt-sum-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 700; padding: 4px 11px; border-radius: 8px; }
+    .tt-issue { font-size: 0.78rem; color: #7a4a12; }
     .pt-batch-card { background: #fbfdfc; border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
     .pt-batch-cardhead { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
     .pt-batch-remove { margin-left: auto; background: none; border: none; color: #b91c1c; font-size: 0.78rem; font-weight: 600; cursor: pointer; padding: 2px 4px; }
@@ -5256,13 +5268,21 @@
     let ttAssignments = []
     let ttAssignTarget = null
 
+    let ttPupils = []
+    let classReqCache = []
+    let staffCompsCache = []
+
     async function loadTimetable() {
-      const [cRes, pRes, clRes, sRes, aRes] = await Promise.all([
+      await getCompetencies()
+      const [cRes, pRes, clRes, sRes, aRes, puRes, rcRes, scRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/school_config?school_id=eq.${currentProfile.school_id}&select=*`, { headers: headers(session.access_token) }),
         fetch(`${SUPABASE_URL}/rest/v1/timetable_periods?select=*&order=sort_order`, { headers: headers(session.access_token) }),
         fetch(`${SUPABASE_URL}/rest/v1/classrooms?select=*&order=name`, { headers: headers(session.access_token) }),
         fetch(`${SUPABASE_URL}/rest/v1/staff?select=id,full_name,role&order=full_name`, { headers: headers(session.access_token) }),
         fetch(`${SUPABASE_URL}/rest/v1/timetable_assignments?select=*`, { headers: headers(session.access_token) }),
+        fetch(`${SUPABASE_URL}/rest/v1/pupils?select=id,classroom_id`, { headers: headers(session.access_token) }),
+        fetch(`${SUPABASE_URL}/rest/v1/classroom_required_competencies?select=*`, { headers: headers(session.access_token) }),
+        fetch(`${SUPABASE_URL}/rest/v1/staff_competencies?select=staff_id,competency_id,expires_on`, { headers: headers(session.access_token) }),
       ])
       const cfg = (cRes.ok ? await cRes.json() : [])[0] || {}
       document.getElementById('cfg-year-start').value = cfg.academic_year_start || ''
@@ -5273,9 +5293,42 @@
       classroomsCache = clRes.ok ? await clRes.json() : classroomsCache
       staffCache = sRes.ok ? await sRes.json() : staffCache
       ttAssignments = aRes.ok ? await aRes.json() : []
+      ttPupils = puRes.ok ? await puRes.json() : []
+      classReqCache = rcRes.ok ? await rcRes.json() : []
+      staffCompsCache = scRes.ok ? await scRes.json() : []
       renderPeriods()
       renderDayTabs()
       renderGrid()
+    }
+
+    // ── Compliance engine (ratio + competency coverage) ──
+    const classRoll = (classId) => ttPupils.filter(p => p.classroom_id === classId).length
+    function classRequiredStaff(cls) {
+      const roll = classRoll(cls.id)
+      let required = cls.min_staff || 0
+      if (cls.ratio_adults && cls.ratio_pupils && roll) required = Math.max(required, Math.ceil(roll / cls.ratio_pupils) * cls.ratio_adults)
+      const preferred = cls.preferred_staff || required
+      return { required, preferred, roll }
+    }
+    const compName = (id) => (competencyCache.find(c => c.id === id)?.name) || 'competency'
+    function cellCompliance(period, cls) {
+      const asg = cellAssignments(period.id, cls.id)
+      const assigned = asg.length
+      const { required, preferred } = classRequiredStaff(cls)
+      let ratioRag = 'none'
+      if (required > 0 || preferred > 0) ratioRag = assigned < required ? 'red' : (assigned < preferred ? 'amber' : 'green')
+      const reqs = classReqCache.filter(r => r.classroom_id === cls.id)
+      const assignedIds = asg.map(a => a.staff_id)
+      const gaps = []
+      reqs.forEach(r => {
+        const holders = assignedIds.filter(sid => staffCompsCache.some(sc => sc.staff_id === sid && sc.competency_id === r.competency_id && expiryState(sc.expires_on) !== 'expired'))
+        if (holders.length < (r.min_count || 1)) gaps.push(r.competency_id)
+      })
+      const compRag = reqs.length ? (gaps.length ? 'red' : 'green') : 'none'
+      const rank = { red:3, amber:2, green:1, none:0 }
+      const worst = rank[ratioRag] >= rank[compRag] ? ratioRag : compRag
+      const assessed = ratioRag !== 'none' || compRag !== 'none'
+      return { assigned, required, preferred, ratioRag, compRag, gaps, worst, assessed }
     }
 
     function ttShowSub(which) {
@@ -5302,13 +5355,41 @@
       if (!periods.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-state-sub">No periods run on this day. Add them under School day.</div></div>`; return }
       if (!classes.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-state-sub">No classes yet. Add classes under Classrooms first.</div></div>`; return }
       const staffName = (id) => (staffCache.find(s => s.id === id)?.full_name) || '?'
-      let html = '<table class="tt-grid-table"><thead><tr><th>Period</th>' +
-        classes.map(c => `<th>${escapeHtml(c.name)}</th>`).join('') + '</tr></thead><tbody>'
+
+      // compliance summary for the day (teaching-type periods only, to avoid flagging breaks)
+      const staffable = periods.filter(p => ['teaching','registration','therapy','swimming','outdoor','offsite'].includes(p.kind))
+      let red = 0, amber = 0, green = 0
+      const issues = []
+      staffable.forEach(p => classes.forEach(c => {
+        const cc = cellCompliance(p, c)
+        if (!cc.assessed) return
+        if (cc.worst === 'red') { red++; issues.push({ p, c, cc }) }
+        else if (cc.worst === 'amber') { amber++; issues.push({ p, c, cc }) }
+        else green++
+      }))
+      const summary = `<div class="tt-summary">
+        <span class="tt-sum-pill" style="background:#e6f4ec;color:#1a7a45">✓ ${green} safe</span>
+        <span class="tt-sum-pill" style="background:#fdf0d8;color:#b5730a">▲ ${amber} watch</span>
+        <span class="tt-sum-pill" style="background:#fdeaea;color:#c0322f">✕ ${red} breach</span>
+        ${issues.slice(0,3).map(i => `<span class="tt-issue">${escapeHtml(i.c.name)} · ${escapeHtml(i.p.name)}: ${i.cc.ratioRag === 'red' ? `${i.cc.assigned}/${i.cc.required} staff` : ''}${i.cc.gaps.length ? (i.cc.ratioRag === 'red' ? ', ' : '') + 'missing ' + i.cc.gaps.map(compName).join(', ') : ''}</span>`).join('')}
+        ${issues.length > 3 ? `<span class="tt-issue">+${issues.length - 3} more</span>` : ''}
+        ${!red && !amber ? '<span class="tt-issue" style="color:#1a7a45">All classes safely staffed for the periods below.</span>' : ''}
+      </div>`
+
+      let html = summary + '<table class="tt-grid-table"><thead><tr><th>Period</th>' +
+        classes.map(c => { const rs = classRequiredStaff(c); return `<th>${escapeHtml(c.name)}<div style="font-size:0.68rem;font-weight:500;color:var(--ink-soft)">${rs.roll} pupils${(c.ratio_adults && c.ratio_pupils) ? ' · ' + c.ratio_adults + ':' + c.ratio_pupils : ''}</div></th>` }).join('') + '</tr></thead><tbody>'
       periods.forEach(p => {
         html += `<tr><td class="tt-per-cell"><div class="tt-per-name">${escapeHtml(p.name)}</div><div class="tt-per-time">${hhmm(p.start_time)}${p.end_time ? '–' + hhmm(p.end_time) : ''}</div></td>`
         classes.forEach(c => {
           const asg = cellAssignments(p.id, c.id)
-          html += `<td class="tt-cell">${asg.map(a => `<span class="tt-assign-chip" onclick="removeAssignment('${a.id}')" title="Remove">${escapeHtml(staffName(a.staff_id))} <span class="x">✕</span></span>`).join('')}<button class="tt-add-btn" onclick="openAssign('${p.id}','${c.id}')">+ staff</button></td>`
+          const cc = cellCompliance(p, c)
+          const ragClass = (cc.worst === 'red') ? 'rag-red' : (cc.worst === 'amber' ? 'rag-amber' : '')
+          const complianceLine = cc.assessed ? `<div class="tt-compliance">
+            ${cc.ratioRag !== 'none' ? `<span class="tt-rag tt-rag-${cc.ratioRag}">${cc.assigned}/${cc.required} staff</span>` : ''}
+            ${cc.gaps.length ? `<span class="tt-gap">⚠ ${cc.gaps.map(compName).join(', ')}</span>` : ''}
+            ${cc.compRag === 'green' && !cc.gaps.length && classReqCache.some(r => r.classroom_id === c.id) ? `<span class="tt-rag tt-rag-green">✓ skills</span>` : ''}
+          </div>` : ''
+          html += `<td class="tt-cell ${ragClass}">${complianceLine}${asg.map(a => `<span class="tt-assign-chip" onclick="removeAssignment('${a.id}')" title="Remove">${escapeHtml(staffName(a.staff_id))} <span class="x">✕</span></span>`).join('')}<button class="tt-add-btn" onclick="openAssign('${p.id}','${c.id}')">+ staff</button></td>`
         })
         html += '</tr>'
       })
