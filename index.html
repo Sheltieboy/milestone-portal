@@ -1758,6 +1758,7 @@
           <div class="tt-subtabs">
             <button class="tt-subtab active" id="ttsub-day" onclick="ttShowSub('day')">School day</button>
             <button class="tt-subtab" id="ttsub-grid" onclick="ttShowSub('grid')">Weekly grid</button>
+            <button class="tt-subtab" id="ttsub-cover" onclick="ttShowSub('cover')">Absence &amp; cover</button>
           </div>
 
           <div id="tt-sub-day">
@@ -1771,6 +1772,23 @@
           <div id="tt-sub-grid" style="display:none">
             <div id="tt-day-tabs" style="display:flex;gap:6px;margin-bottom:14px"></div>
             <div id="tt-grid" style="overflow-x:auto"></div>
+          </div>
+
+          <div id="tt-sub-cover" style="display:none">
+            <div class="passport-section" style="margin-bottom:1.2rem">
+              <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px">
+                <div class="form-group" style="margin:0">
+                  <label class="form-label">Date</label>
+                  <input type="date" id="cover-date" class="form-input" onchange="loadCover()" style="width:180px">
+                </div>
+                <div style="flex:1;min-width:240px">
+                  <label class="form-label">Who's absent?</label>
+                  <div id="cover-absence-chips" style="display:flex;flex-wrap:wrap;gap:7px"></div>
+                </div>
+                <button class="btn" onclick="computeCover()">Recalculate cover ✨</button>
+              </div>
+            </div>
+            <div id="cover-result"></div>
           </div>
         </div>
       </div>
@@ -5332,10 +5350,11 @@
     }
 
     function ttShowSub(which) {
-      document.getElementById('tt-sub-day').style.display = which === 'day' ? 'block' : 'none'
-      document.getElementById('tt-sub-grid').style.display = which === 'grid' ? 'block' : 'none'
-      document.getElementById('ttsub-day').classList.toggle('active', which === 'day')
-      document.getElementById('ttsub-grid').classList.toggle('active', which === 'grid')
+      ['day','grid','cover'].forEach(s => {
+        document.getElementById('tt-sub-' + s).style.display = which === s ? 'block' : 'none'
+        document.getElementById('ttsub-' + s).classList.toggle('active', which === s)
+      })
+      if (which === 'cover') initCover()
     }
 
     function renderDayTabs() {
@@ -5345,7 +5364,7 @@
     function ttSetDay(d) { ttSelectedDay = d; renderDayTabs(); renderGrid() }
 
     function cellAssignments(periodId, classroomId) {
-      return ttAssignments.filter(a => a.period_id === periodId && a.classroom_id === classroomId && a.day === ttSelectedDay)
+      return ttAssignments.filter(a => !a.cover_date && a.period_id === periodId && a.classroom_id === classroomId && a.day === ttSelectedDay)
     }
 
     function renderGrid() {
@@ -5438,6 +5457,153 @@
       await fetch(`${SUPABASE_URL}/rest/v1/timetable_assignments?id=eq.${id}`, { method:'DELETE', headers: headers(session.access_token) })
       ttAssignments = ttAssignments.filter(a => a.id !== id)
       renderGrid()
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // WORKFORCE · P2 — Absence & AI cover reallocation
+    // ═══════════════════════════════════════════════════════════════════════
+    let coverAbsences = []
+    let coverPlan = []
+    const staffHolds = (sid, cid) => staffCompsCache.some(sc => sc.staff_id === sid && sc.competency_id === cid && expiryState(sc.expires_on) !== 'expired')
+    const usuallyIn = (sid, cid) => ttAssignments.some(a => !a.cover_date && a.classroom_id === cid && a.staff_id === sid)
+    function ttWeekdayOf(dateStr) {
+      if (!dateStr) return null
+      const d = new Date(dateStr + 'T00:00:00')
+      const wd = ['sun','mon','tue','wed','thu','fri','sat'][d.getDay()]
+      return ['mon','tue','wed','thu','fri'].includes(wd) ? wd : null
+    }
+    function complianceOf(cls, assignedRows) {
+      const assigned = assignedRows.length
+      const { required, preferred } = classRequiredStaff(cls)
+      let ratioRag = 'none'
+      if (required > 0 || preferred > 0) ratioRag = assigned < required ? 'red' : (assigned < preferred ? 'amber' : 'green')
+      const reqs = classReqCache.filter(r => r.classroom_id === cls.id)
+      const ids = assignedRows.map(a => a.staff_id)
+      const gaps = []
+      reqs.forEach(r => { const holders = ids.filter(sid => staffHolds(sid, r.competency_id)); if (holders.length < (r.min_count || 1)) gaps.push(r.competency_id) })
+      const compRag = reqs.length ? (gaps.length ? 'red' : 'green') : 'none'
+      const rank = { red:3, amber:2, green:1, none:0 }
+      return { assigned, required, ratioRag, compRag, gaps, worst: rank[ratioRag] >= rank[compRag] ? ratioRag : compRag }
+    }
+    const coverMsg = (html) => `<div style="background:#fbfdfc;border:1px solid var(--border);border-radius:12px;padding:16px;color:var(--ink-soft);font-size:0.88rem">${html}</div>`
+
+    async function initCover() {
+      const el = document.getElementById('cover-date')
+      if (!el.value) el.value = new Date().toISOString().slice(0,10)
+      await loadCover()
+    }
+    async function loadCover() {
+      const date = document.getElementById('cover-date').value
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/staff_absences?absence_date=eq.${date}&select=*`, { headers: headers(session.access_token) })
+      coverAbsences = r.ok ? await r.json() : []
+      renderAbsenceChips()
+      const wd = ttWeekdayOf(date)
+      document.getElementById('cover-result').innerHTML = wd ? coverMsg('Mark who is absent above, then press <b>Recalculate cover</b> — the planner will find the fewest moves that keep every class safe.') : coverMsg('That date is a weekend — pick a school day.')
+    }
+    function renderAbsenceChips() {
+      const absent = new Set(coverAbsences.map(a => a.staff_id))
+      document.getElementById('cover-absence-chips').innerHTML = staffCache.map(s =>
+        `<span class="uv-chip ${absent.has(s.id) ? 'on' : ''}" style="cursor:pointer" onclick="toggleAbsence('${s.id}')">${absent.has(s.id) ? '✓ ' : ''}${escapeHtml(s.full_name)}</span>`).join('') || '<span style="color:var(--ink-soft);font-size:0.82rem">No staff yet — add them under Staff &amp; Training.</span>'
+    }
+    async function toggleAbsence(staffId) {
+      const date = document.getElementById('cover-date').value
+      const existing = coverAbsences.find(a => a.staff_id === staffId)
+      if (existing) {
+        await fetch(`${SUPABASE_URL}/rest/v1/staff_absences?id=eq.${existing.id}`, { method:'DELETE', headers: headers(session.access_token) })
+        coverAbsences = coverAbsences.filter(a => a.id !== existing.id)
+      } else {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/staff_absences`, { method:'POST', headers:{ ...headers(session.access_token), 'Prefer':'return=representation' }, body: JSON.stringify({ school_id: currentProfile.school_id, staff_id: staffId, absence_date: date, reason: 'sickness' }) })
+        if (r.ok) coverAbsences.push((await r.json())[0])
+      }
+      renderAbsenceChips()
+    }
+
+    function computeCover() {
+      const date = document.getElementById('cover-date').value
+      const wd = ttWeekdayOf(date)
+      const out = document.getElementById('cover-result')
+      if (!wd) { out.innerHTML = coverMsg('That date is a weekend — pick a school day.'); return }
+      const absentIds = new Set(coverAbsences.map(a => a.staff_id))
+      const periods = periodsCache.filter(p => ['teaching','therapy','swimming','outdoor','offsite'].includes(p.kind) && (p.days || []).includes(wd))
+        .sort((a,b) => (a.sort_order ?? mins(a.start_time)) - (b.sort_order ?? mins(b.start_time)))
+      const classes = classroomsCache.filter(c => c.active !== false)
+      // effective (recurring for the weekday + any existing cover for the date) minus absentees
+      let work = ttAssignments
+        .filter(a => (!a.cover_date && a.day === wd) || (a.cover_date === date))
+        .filter(a => !absentIds.has(a.staff_id))
+        .map(a => ({ period_id: a.period_id, classroom_id: a.classroom_id, staff_id: a.staff_id }))
+      const cellRows = (pid, cid) => work.filter(w => w.period_id === pid && w.classroom_id === cid)
+      const plan = [], unresolved = []
+      periods.forEach(p => {
+        let freePool = staffCache.filter(s => !absentIds.has(s.id) && !work.some(w => w.period_id === p.id && w.staff_id === s.id)).map(s => s.id)
+        classes.forEach(c => {
+          let comp = complianceOf(c, cellRows(p.id, c.id))
+          let guard = 0
+          while (comp.worst === 'red' && guard++ < 6) {
+            const missing = comp.gaps[0]
+            const scored = freePool.map(sid => {
+              const s = staffCache.find(x => x.id === sid)
+              let score = 1; const reasons = []
+              if (missing && staffHolds(sid, missing)) { score += 100; reasons.push('covers ' + compName(missing)) }
+              comp.gaps.forEach(g => { if (g !== missing && staffHolds(sid, g)) { score += 40; reasons.push('covers ' + compName(g)) } })
+              if (usuallyIn(sid, c.id)) { score += 12; reasons.push('a familiar adult for this class') }
+              if (comp.ratioRag === 'red') { score += 8; reasons.push('restores safe ratio') }
+              return { sid, s, score, reasons }
+            }).sort((a,b) => b.score - a.score)
+            let pick = missing ? (scored.find(x => staffHolds(x.sid, missing)) || null) : null
+            if (!pick) pick = scored[0] || null
+            if (!pick) { unresolved.push({ p, c, comp }); break }
+            work.push({ period_id: p.id, classroom_id: c.id, staff_id: pick.sid })
+            freePool = freePool.filter(id => id !== pick.sid)
+            plan.push({ staffId: pick.sid, staff: pick.s, periodId: p.id, period: p, classId: c.id, cls: c, reasons: pick.reasons })
+            comp = complianceOf(c, cellRows(p.id, c.id))
+          }
+        })
+      })
+      coverPlan = plan
+      renderCover(plan, unresolved, absentIds)
+    }
+
+    function renderCover(plan, unresolved, absentIds) {
+      const out = document.getElementById('cover-result')
+      const absentNames = [...absentIds].map(id => (staffCache.find(s => s.id === id)?.full_name)).filter(Boolean)
+      if (!absentIds.size) { out.innerHTML = coverMsg('No one marked absent — mark who is off above, then Recalculate.'); return }
+      if (!plan.length && !unresolved.length) {
+        out.innerHTML = `<div style="background:#e6f4ec;border:1px solid #b7e0c6;border-radius:12px;padding:16px;color:#1a7a45;font-weight:600">✓ ${escapeHtml(absentNames.join(', '))} absent — every class stays safely staffed. No moves needed.</div>`
+        return
+      }
+      const dayLabel = (TT_DAYS.find(d => d[0] === ttWeekdayOf(document.getElementById('cover-date').value)) || ['',''])[1]
+      let html = `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px">
+        <div style="font-weight:700;color:var(--green-deep)">Cover plan · ${escapeHtml(absentNames.join(', '))} absent</div>
+        <span class="tt-sum-pill" style="background:#e6f4ec;color:#1a7a45">${plan.length} move${plan.length !== 1 ? 's' : ''} proposed</span>
+        ${unresolved.length ? `<span class="tt-sum-pill" style="background:#fdeaea;color:#c0322f">${unresolved.length} still uncovered</span>` : ''}
+      </div>`
+      html += plan.map(m => {
+        const explanation = `${m.staff.full_name} is free during ${m.period.name}${m.reasons.length ? ' and ' + m.reasons.join(', ') : ''}.`
+        return `<div style="background:#fff;border:1px solid var(--border);border-left:4px solid #2d8a5e;border-radius:10px;padding:13px 15px;margin-bottom:10px">
+          <div style="font-weight:700;color:var(--ink);font-size:0.92rem">✨ Move ${escapeHtml(m.staff.full_name)} → ${escapeHtml(m.cls.name)} · ${escapeHtml(m.period.name)}</div>
+          <div style="font-size:0.83rem;color:var(--ink-soft);margin-top:4px">${escapeHtml(explanation)}</div>
+        </div>`
+      }).join('')
+      html += unresolved.map(u => {
+        const need = [u.comp.ratioRag === 'red' ? `${u.comp.assigned}/${u.comp.required} staff` : '', u.comp.gaps.length ? 'missing ' + u.comp.gaps.map(compName).join(', ') : ''].filter(Boolean).join(', ')
+        return `<div style="background:#fdeaea;border:1px solid #f3c2c0;border-radius:10px;padding:13px 15px;margin-bottom:10px">
+          <div style="font-weight:700;color:#c0322f;font-size:0.9rem">⚠ No internal cover — ${escapeHtml(u.cls.name)} · ${escapeHtml(u.period.name)}</div>
+          <div style="font-size:0.83rem;color:#8a3b39;margin-top:4px">Still ${escapeHtml(need)}. No available qualified staff — consider agency, leadership cover, or moving the activity.</div>
+        </div>`
+      }).join('')
+      if (plan.length) html += `<button class="btn" style="margin-top:6px" onclick="applyCover()">Apply cover plan (${plan.length})</button>`
+      out.innerHTML = html
+    }
+
+    async function applyCover() {
+      const date = document.getElementById('cover-date').value
+      const wd = ttWeekdayOf(date)
+      if (!coverPlan.length || !wd) return
+      const rows = coverPlan.map(m => ({ school_id: currentProfile.school_id, period_id: m.periodId, classroom_id: m.classId, staff_id: m.staffId, day: wd, cover_date: date, role: 'cover' }))
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/timetable_assignments`, { method:'POST', headers:{ ...headers(session.access_token), 'Prefer':'return=representation' }, body: JSON.stringify(rows) })
+      if (r.ok) ttAssignments.push(...(await r.json()))
+      computeCover()
     }
 
     async function saveSchoolConfig() {
