@@ -1393,6 +1393,11 @@
           <span class="sidebar-link-icon">👥</span> Group Sessions
         </div>
 
+        <div class="sidebar-section">Workforce</div>
+        <div class="sidebar-link" onclick="showView('staff')" id="nav-staff">
+          <span class="sidebar-link-icon">🧑‍🏫</span> Staff &amp; Training
+        </div>
+
         <div class="sidebar-section">Classroom</div>
         <div class="sidebar-link" onclick="window.location.href='games.html'" id="nav-games">
           <span class="sidebar-link-icon">🎮</span> Games Centre
@@ -1670,6 +1675,137 @@
         </div>
       </div>
 
+      <!-- WORKFORCE · STAFF & TRAINING -->
+      <div id="view-staff" style="display:none">
+        <div class="topbar">
+          <div class="topbar-title">Staff &amp; Training</div>
+          <button class="btn btn-sm" onclick="openStaffEditor()">+ Add staff</button>
+        </div>
+        <div class="content">
+          <div class="stats-grid" id="staff-stats" style="margin-bottom:1.4rem"></div>
+          <div class="section-header"><div class="section-title">Your team</div></div>
+          <div id="staff-list"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Add / edit staff -->
+  <div class="modal-overlay" id="modal-staff">
+    <div class="modal" style="max-width:620px">
+      <div class="modal-title" id="modal-staff-title">Add staff member</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group" style="grid-column:1 / -1">
+          <label class="form-label">Full name <span style="color:#dc2626">*</span></label>
+          <input type="text" id="staff-name" class="form-input" placeholder="e.g. Shannon Leslie">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Role</label>
+          <select id="staff-role" class="form-input">
+            <option value="teacher">Teacher</option>
+            <option value="lsw">Learning Support Worker</option>
+            <option value="psa">Pupil Support Assistant</option>
+            <option value="snr">Senior LSW</option>
+            <option value="slt">SLT / Leadership</option>
+            <option value="nurse">School Nurse</option>
+            <option value="therapist">Therapist (SALT/OT/Physio)</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Employment</label>
+          <select id="staff-employment" class="form-input">
+            <option value="permanent">Permanent</option>
+            <option value="fixed_term">Fixed term</option>
+            <option value="bank">Bank</option>
+            <option value="supply">Supply</option>
+            <option value="agency">Agency</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Contract hours / week</label>
+          <input type="number" id="staff-hours" class="form-input" placeholder="e.g. 35" min="0" step="0.5">
+        </div>
+        <div class="form-group">
+          <label class="form-label">FTE</label>
+          <input type="number" id="staff-fte" class="form-input" placeholder="e.g. 1.0" min="0" max="1" step="0.1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Teaching registration (GTCS)</label>
+          <input type="text" id="staff-gtcs" class="form-input" placeholder="Optional">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Years of experience</label>
+          <input type="number" id="staff-experience" class="form-input" placeholder="Optional" min="0" step="1">
+        </div>
+        <div class="form-group" style="grid-column:1 / -1">
+          <label class="form-label">Leadership responsibilities</label>
+          <input type="text" id="staff-leadership" class="form-input" placeholder="e.g. Depute Head, Moving &amp; Handling lead">
+        </div>
+        <div class="form-group" style="grid-column:1 / -1">
+          <label class="form-label">Notes / constraints</label>
+          <textarea id="staff-notes" class="passport-textarea" placeholder="Working pattern, restrictions, preferences…" style="min-height:60px"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="staff-save-btn" onclick="saveStaff()">Save</button>
+        <button class="btn btn-secondary" onclick="closeModal('modal-staff')">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Staff detail + training matrix -->
+  <div class="modal-overlay" id="modal-staff-detail">
+    <div class="modal" style="max-width:720px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:0.4rem">
+        <div>
+          <div class="modal-title" id="sd-name" style="margin:0">—</div>
+          <div id="sd-sub" style="font-size:0.85rem;color:var(--ink-soft)"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-sm btn-secondary" onclick="editStaffFromDetail()">Edit</button>
+          <button class="pt-close" onclick="closeModal('modal-staff-detail')" aria-label="Close">✕</button>
+        </div>
+      </div>
+      <div class="section-header" style="margin-top:1rem"><div class="section-title">Training matrix</div></div>
+      <div style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:0.7rem">Tick a competency to record it, then set the level and expiry. Red = expired, amber = expiring within 60 days.</div>
+      <div id="sd-training"></div>
+    </div>
+  </div>
+
+  <!-- Record / edit one competency for a staff member -->
+  <div class="modal-overlay" id="modal-competency" style="z-index:320">
+    <div class="modal" style="max-width:460px">
+      <div class="modal-title" id="cmp-title">Record competency</div>
+      <div class="form-group">
+        <label class="form-label">Level</label>
+        <select id="cmp-level" class="form-input">
+          <option value="aware">Aware</option>
+          <option value="trained">Trained</option>
+          <option value="advanced">Advanced</option>
+          <option value="trainer">Trainer</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">Completed on</label>
+          <input type="date" id="cmp-achieved" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Expires on</label>
+          <input type="date" id="cmp-expires" class="form-input">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Training provider</label>
+        <input type="text" id="cmp-provider" class="form-input" placeholder="Optional">
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="saveCompetency()">Save</button>
+        <button class="btn btn-secondary" onclick="removeCompetency()" id="cmp-remove-btn" style="display:none;background:#fdecea;color:#b91c1c;border-color:#f5c6c2">Remove</button>
+        <button class="btn btn-secondary" onclick="closeModal('modal-competency')">Cancel</button>
+      </div>
     </div>
   </div>
 
@@ -2229,12 +2365,13 @@
     // going back/forward through existing history entries.
 
     function showView(view, _fromHistory) {
-      ['dashboard','pupils','hub','settings','sessions'].forEach(v => {
+      ['dashboard','pupils','hub','settings','sessions','staff'].forEach(v => {
         document.getElementById(`view-${v}`).style.display = v === view ? 'block' : 'none'
       })
-      ;['dashboard','pupils','settings','sessions'].forEach(v => {
+      ;['dashboard','pupils','settings','sessions','staff'].forEach(v => {
         document.getElementById(`nav-${v}`)?.classList.toggle('active', v === view)
       })
+      if (view === 'staff') loadStaff().catch(() => {})
       if (view === 'sessions') loadSessions()
       if (view === 'settings') populateSettingsSchool().catch(() => {})
       if (view === 'dashboard') loadAndRenderBriefing().catch(() => {})
@@ -4530,6 +4667,218 @@
 
     function escapeHtml(s) {
       return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // WORKFORCE · Staff & training
+    // ═══════════════════════════════════════════════════════════════════════
+    let staffCache = []
+    let competencyCache = null
+    let staffCompCounts = {}       // staff_id -> { total, expired, expiring }
+    let editingStaffId = null
+    let sdStaff = null             // staff open in the detail modal
+    let sdComps = []               // that staff's staff_competencies rows
+    let cmpEditing = null          // { competency_id, existing }
+
+    const ROLE_LABEL = { teacher:'Teacher', lsw:'Learning Support Worker', psa:'Pupil Support Assistant', snr:'Senior LSW', slt:'SLT / Leadership', nurse:'School Nurse', therapist:'Therapist', other:'Other' }
+    const EMP_LABEL = { permanent:'Permanent', fixed_term:'Fixed term', bank:'Bank', supply:'Supply', agency:'Agency' }
+    const CAT_LABEL = { medical:'Medical', behaviour:'Behaviour', communication:'Communication', manual_handling:'Moving & handling', care:'Personal care', first_aid:'First aid', training:'Training', other:'Other' }
+    const daysUntil = (d) => d ? Math.round((new Date(d) - new Date()) / 86400000) : null
+    const expiryState = (d) => { const n = daysUntil(d); if (n === null) return 'none'; if (n < 0) return 'expired'; if (n <= 60) return 'expiring'; return 'valid' }
+
+    async function getCompetencies() {
+      if (competencyCache) return competencyCache
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/competencies?select=*&order=sort_order`, { headers: headers(session.access_token) })
+      competencyCache = res.ok ? await res.json() : []
+      return competencyCache
+    }
+
+    async function loadStaff() {
+      const list = document.getElementById('staff-list')
+      list.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--ink-soft)">Loading staff…</div>'
+      await getCompetencies()
+      const [sRes, scRes] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/staff?select=*&order=full_name`, { headers: headers(session.access_token) }),
+        fetch(`${SUPABASE_URL}/rest/v1/staff_competencies?select=staff_id,expires_on`, { headers: headers(session.access_token) }),
+      ])
+      staffCache = sRes.ok ? await sRes.json() : []
+      const sc = scRes.ok ? await scRes.json() : []
+      staffCompCounts = {}
+      sc.forEach(r => {
+        const c = staffCompCounts[r.staff_id] = staffCompCounts[r.staff_id] || { total:0, expired:0, expiring:0 }
+        c.total++
+        const st = expiryState(r.expires_on)
+        if (st === 'expired') c.expired++
+        else if (st === 'expiring') c.expiring++
+      })
+      renderStaffStats()
+      renderStaffList()
+    }
+
+    function renderStaffStats() {
+      const n = staffCache.length
+      const totalComp = Object.values(staffCompCounts).reduce((a, c) => a + c.total, 0)
+      const expiring = Object.values(staffCompCounts).reduce((a, c) => a + c.expiring + c.expired, 0)
+      const cards = [
+        { label:'Staff', value:n, sub:'in your team' },
+        { label:'Competencies logged', value:totalComp, sub:'across the team' },
+        { label:'Need attention', value:expiring, sub:'expired or expiring' },
+      ]
+      document.getElementById('staff-stats').innerHTML = cards.map(c =>
+        `<div class="stat-card"><div class="stat-card-label">${c.label}</div><div class="stat-card-value">${c.value}</div><div class="stat-card-sub">${c.sub}</div></div>`).join('')
+    }
+
+    function renderStaffList() {
+      const list = document.getElementById('staff-list')
+      if (!staffCache.length) {
+        list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🧑‍🏫</div><div class="empty-state-title">No staff yet</div><div class="empty-state-sub">Add your team to build the training matrix and, soon, the timetable.</div></div>`
+        return
+      }
+      list.innerHTML = staffCache.map(s => {
+        const c = staffCompCounts[s.id] || { total:0, expired:0, expiring:0 }
+        const warn = c.expired + c.expiring
+        const initials = (s.full_name || '?').split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()
+        return `<div class="team-row" style="cursor:pointer" onclick="openStaff('${s.id}')">
+          <div class="team-avatar">${escapeHtml(initials)}</div>
+          <div style="flex:1">
+            <div class="team-name">${escapeHtml(s.full_name)}${!s.active ? ' <span class="badge" style="background:#eee;color:#888">Inactive</span>' : ''}</div>
+            <div class="team-role">${ROLE_LABEL[s.role] || s.role || '—'} · ${EMP_LABEL[s.employment_type] || s.employment_type || ''}${s.contract_hours ? ' · ' + s.contract_hours + 'h' : ''}</div>
+          </div>
+          <div style="text-align:right;font-size:0.8rem">
+            <span class="badge badge-green">${c.total} trained</span>
+            ${warn ? `<span class="badge badge-amber" style="margin-left:4px">${warn} to review</span>` : ''}
+          </div>
+        </div>`
+      }).join('')
+    }
+
+    function openStaffEditor(id) {
+      editingStaffId = id || null
+      const s = id ? staffCache.find(x => x.id === id) : null
+      document.getElementById('modal-staff-title').textContent = s ? 'Edit staff member' : 'Add staff member'
+      const set = (el, v) => document.getElementById(el).value = v ?? ''
+      set('staff-name', s?.full_name); set('staff-role', s?.role || 'teacher'); set('staff-employment', s?.employment_type || 'permanent')
+      set('staff-hours', s?.contract_hours); set('staff-fte', s?.fte); set('staff-gtcs', s?.teaching_registration)
+      set('staff-experience', s?.years_experience); set('staff-leadership', s?.leadership_responsibilities); set('staff-notes', s?.notes)
+      document.getElementById('modal-staff').style.display = 'flex'
+    }
+
+    async function saveStaff() {
+      const name = document.getElementById('staff-name').value.trim()
+      if (!name) { alert('Please enter a name.'); return }
+      const num = (id) => { const v = document.getElementById(id).value; return v === '' ? null : Number(v) }
+      const body = {
+        full_name: name,
+        role: document.getElementById('staff-role').value,
+        employment_type: document.getElementById('staff-employment').value,
+        contract_hours: num('staff-hours'), fte: num('staff-fte'),
+        teaching_registration: document.getElementById('staff-gtcs').value.trim() || null,
+        years_experience: num('staff-experience'),
+        leadership_responsibilities: document.getElementById('staff-leadership').value.trim() || null,
+        notes: document.getElementById('staff-notes').value.trim() || null,
+      }
+      const btn = document.getElementById('staff-save-btn'); btn.disabled = true; btn.textContent = 'Saving…'
+      let ok = false
+      try {
+        if (editingStaffId) {
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/staff?id=eq.${editingStaffId}`, { method:'PATCH', headers:{ ...headers(session.access_token), 'Prefer':'return=minimal' }, body: JSON.stringify(body) })
+          ok = r.ok
+        } else {
+          body.school_id = currentProfile.school_id
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/staff`, { method:'POST', headers:{ ...headers(session.access_token), 'Prefer':'return=minimal' }, body: JSON.stringify(body) })
+          ok = r.ok
+        }
+      } catch (e) {}
+      btn.disabled = false; btn.textContent = 'Save'
+      if (!ok) { alert('Could not save the staff member. Please try again.'); return }
+      closeModal('modal-staff')
+      await loadStaff()
+    }
+
+    async function openStaff(id) {
+      sdStaff = staffCache.find(s => s.id === id)
+      if (!sdStaff) return
+      document.getElementById('sd-name').textContent = sdStaff.full_name
+      document.getElementById('sd-sub').textContent = [ROLE_LABEL[sdStaff.role] || sdStaff.role, EMP_LABEL[sdStaff.employment_type] || sdStaff.employment_type, sdStaff.contract_hours ? sdStaff.contract_hours + 'h/wk' : null, sdStaff.leadership_responsibilities].filter(Boolean).join(' · ')
+      document.getElementById('sd-training').innerHTML = '<div style="color:var(--ink-soft);padding:1rem">Loading…</div>'
+      document.getElementById('modal-staff-detail').style.display = 'flex'
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/staff_competencies?staff_id=eq.${id}&select=*`, { headers: headers(session.access_token) })
+      sdComps = res.ok ? await res.json() : []
+      renderTrainingMatrix()
+    }
+
+    function editStaffFromDetail() {
+      if (!sdStaff) return
+      closeModal('modal-staff-detail')
+      openStaffEditor(sdStaff.id)
+    }
+
+    function renderTrainingMatrix() {
+      const byCat = {}
+      competencyCache.forEach(c => { (byCat[c.category || 'other'] = byCat[c.category || 'other'] || []).push(c) })
+      const order = ['manual_handling','medical','behaviour','communication','care','first_aid','training','other']
+      const cats = Object.keys(byCat).sort((a,b) => order.indexOf(a) - order.indexOf(b))
+      const LEVEL = { aware:'Aware', trained:'Trained', advanced:'Advanced', trainer:'Trainer' }
+      document.getElementById('sd-training').innerHTML = cats.map(cat => `
+        <div style="margin-bottom:1rem">
+          <div style="font-size:0.7rem;font-weight:700;color:var(--green-mid);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">${CAT_LABEL[cat] || cat}</div>
+          ${byCat[cat].map(c => {
+            const held = sdComps.find(sc => sc.competency_id === c.id)
+            const st = held ? expiryState(held.expires_on) : 'none'
+            const dot = held ? (st === 'expired' ? '#dc2626' : st === 'expiring' ? '#d97706' : '#2d8a5e') : '#d1d5db'
+            const meta = held ? [LEVEL[held.level] || held.level, held.expires_on ? 'exp ' + new Date(held.expires_on).toLocaleDateString('en-GB',{month:'short',year:'numeric'}) : null].filter(Boolean).join(' · ') : 'Not recorded'
+            return `<div onclick="openCompetency('${c.id}')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:9px;margin-bottom:5px;cursor:pointer;background:${held ? '#fff' : '#fafafa'}">
+              <span style="width:9px;height:9px;border-radius:50%;background:${dot};flex:none"></span>
+              <span style="flex:1;font-size:0.85rem;font-weight:${held ? 600 : 400};color:${held ? 'var(--ink)' : 'var(--ink-soft)'}">${escapeHtml(c.name)}${c.is_mandatory ? ' <span style="font-size:0.62rem;color:#b91c1c">MANDATORY</span>' : ''}</span>
+              <span style="font-size:0.75rem;color:var(--ink-soft)">${meta}</span>
+            </div>`
+          }).join('')}
+        </div>`).join('')
+    }
+
+    function openCompetency(competencyId) {
+      const comp = competencyCache.find(c => c.id === competencyId)
+      const existing = sdComps.find(sc => sc.competency_id === competencyId)
+      cmpEditing = { competency_id: competencyId, existing }
+      document.getElementById('cmp-title').textContent = comp ? comp.name : 'Record competency'
+      document.getElementById('cmp-level').value = existing?.level || 'trained'
+      document.getElementById('cmp-achieved').value = existing?.achieved_on || ''
+      document.getElementById('cmp-expires').value = existing?.expires_on || ''
+      document.getElementById('cmp-provider').value = existing?.training_provider || ''
+      document.getElementById('cmp-remove-btn').style.display = existing ? 'inline-flex' : 'none'
+      document.getElementById('modal-competency').style.display = 'flex'
+    }
+
+    async function saveCompetency() {
+      if (!cmpEditing || !sdStaff) return
+      const body = {
+        level: document.getElementById('cmp-level').value,
+        achieved_on: document.getElementById('cmp-achieved').value || null,
+        expires_on: document.getElementById('cmp-expires').value || null,
+        training_provider: document.getElementById('cmp-provider').value.trim() || null,
+      }
+      let ok = false
+      try {
+        if (cmpEditing.existing) {
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/staff_competencies?id=eq.${cmpEditing.existing.id}`, { method:'PATCH', headers:{ ...headers(session.access_token), 'Prefer':'return=minimal' }, body: JSON.stringify(body) })
+          ok = r.ok
+        } else {
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/staff_competencies`, { method:'POST', headers:{ ...headers(session.access_token), 'Prefer':'return=minimal' }, body: JSON.stringify({ ...body, staff_id: sdStaff.id, competency_id: cmpEditing.competency_id }) })
+          ok = r.ok
+        }
+      } catch (e) {}
+      if (!ok) { alert('Could not save. Please try again.'); return }
+      closeModal('modal-competency')
+      await openStaff(sdStaff.id)
+      loadStaff()
+    }
+
+    async function removeCompetency() {
+      if (!cmpEditing?.existing) return
+      await fetch(`${SUPABASE_URL}/rest/v1/staff_competencies?id=eq.${cmpEditing.existing.id}`, { method:'DELETE', headers: headers(session.access_token) })
+      closeModal('modal-competency')
+      await openStaff(sdStaff.id)
+      loadStaff()
     }
 
     // ── Open builder (new or edit) ──
