@@ -887,6 +887,29 @@
     .tt-assign-chip .ava { width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 0.58rem; font-weight: 800; color: #fff; }
     .tt-grid-table thead th { background: #f2f8f4; }
     .tt-add-btn { border-radius: 999px; }
+    /* resilience */
+    .res-hero { display: grid; grid-template-columns: minmax(220px, 260px) 1fr; gap: 16px; align-items: stretch; }
+    @media (max-width: 760px) { .res-hero { grid-template-columns: 1fr; } }
+    .res-scorecard { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 20px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
+    .res-score-num { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 3.2rem; line-height: 1; }
+    .res-band { display: inline-block; font-size: 0.78rem; font-weight: 700; padding: 4px 14px; border-radius: 999px; margin-top: 8px; }
+    .res-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+    .res-kpi { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 15px 16px; }
+    .res-kpi-num { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 1.9rem; line-height: 1; }
+    .res-kpi-lab { font-size: 0.76rem; color: var(--ink-soft); margin-top: 5px; }
+    .res-pri { display: flex; gap: 12px; align-items: flex-start; background: #fff; border: 1px solid var(--border); border-left-width: 4px; border-radius: 12px; padding: 13px 15px; margin-bottom: 9px; }
+    .res-pri-ico { font-size: 1.1rem; line-height: 1.3; }
+    .res-pri-title { font-weight: 700; font-size: 0.92rem; color: var(--ink); }
+    .res-pri-sub { font-size: 0.83rem; color: var(--ink-soft); margin-top: 2px; line-height: 1.45; }
+    .res-cov-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 11px; margin-bottom: 7px; background: #fff; }
+    .res-cov-name { font-weight: 600; font-size: 0.88rem; min-width: 190px; }
+    .res-cov-holders { flex: 1; font-size: 0.8rem; color: var(--ink-soft); }
+    .res-matrix-tbl { border-collapse: separate; border-spacing: 0; min-width: 640px; font-size: 0.8rem; }
+    .res-matrix-tbl th, .res-matrix-tbl td { padding: 8px 6px; text-align: center; border-bottom: 1px solid #eef2f0; }
+    .res-matrix-tbl th.rowh, .res-matrix-tbl td.rowh { text-align: left; font-weight: 600; white-space: nowrap; position: sticky; left: 0; background: #fff; z-index: 1; }
+    .res-matrix-tbl thead th { position: sticky; top: 0; background: #f2f8f4; }
+    .res-dot { width: 13px; height: 13px; border-radius: 50%; display: inline-block; }
+    .res-mava { width: 26px; height: 26px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 0.6rem; font-weight: 800; color: #fff; }
     .pt-batch-card { background: #fbfdfc; border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
     .pt-batch-cardhead { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
     .pt-batch-remove { margin-left: auto; background: none; border: none; color: #b91c1c; font-size: 0.78rem; font-weight: 600; cursor: pointer; padding: 2px 4px; }
@@ -1478,6 +1501,9 @@
         <div class="sidebar-link" onclick="showView('timetable')" id="nav-timetable">
           <span class="sidebar-link-icon">🗓️</span> Timetable
         </div>
+        <div class="sidebar-link" onclick="showView('resilience')" id="nav-resilience">
+          <span class="sidebar-link-icon">🛡️</span> Resilience
+        </div>
 
         <div class="sidebar-section">Classroom</div>
         <div class="sidebar-link" onclick="window.location.href='games.html'" id="nav-games">
@@ -1777,6 +1803,22 @@
         </div>
         <div class="content">
           <div id="classrooms-list"></div>
+        </div>
+      </div>
+
+      <!-- WORKFORCE · RESILIENCE -->
+      <div id="view-resilience" style="display:none">
+        <div class="topbar">
+          <div class="topbar-title">Workforce resilience</div>
+        </div>
+        <div class="content">
+          <div id="res-score"></div>
+          <div class="section-header" style="margin-top:1.6rem"><div class="section-title">Priorities</div></div>
+          <div id="res-priorities"></div>
+          <div class="section-header" style="margin-top:1.8rem"><div class="section-title">Competency coverage</div></div>
+          <div id="res-coverage"></div>
+          <div class="section-header" style="margin-top:1.8rem"><div class="section-title">Skills matrix</div></div>
+          <div id="res-matrix" style="overflow-x:auto"></div>
         </div>
       </div>
 
@@ -2630,15 +2672,16 @@
     // going back/forward through existing history entries.
 
     function showView(view, _fromHistory) {
-      ['dashboard','pupils','hub','settings','sessions','staff','classrooms','timetable'].forEach(v => {
+      ['dashboard','pupils','hub','settings','sessions','staff','classrooms','timetable','resilience'].forEach(v => {
         document.getElementById(`view-${v}`).style.display = v === view ? 'block' : 'none'
       })
-      ;['dashboard','pupils','settings','sessions','staff','classrooms','timetable'].forEach(v => {
+      ;['dashboard','pupils','settings','sessions','staff','classrooms','timetable','resilience'].forEach(v => {
         document.getElementById(`nav-${v}`)?.classList.toggle('active', v === view)
       })
       if (view === 'staff') loadStaff().catch(() => {})
       if (view === 'classrooms') loadClassrooms().catch(() => {})
       if (view === 'timetable') loadTimetable().catch(() => {})
+      if (view === 'resilience') loadResilience().catch(() => {})
       if (view === 'sessions') loadSessions()
       if (view === 'settings') populateSettingsSchool().catch(() => {})
       if (view === 'dashboard') loadAndRenderBriefing().catch(() => {})
@@ -5694,6 +5737,106 @@
       const r = await fetch(`${SUPABASE_URL}/rest/v1/timetable_assignments`, { method:'POST', headers:{ ...headers(session.access_token), 'Prefer':'return=representation' }, body: JSON.stringify(rows) })
       if (r.ok) ttAssignments.push(...(await r.json()))
       computeCover()
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // WORKFORCE · P3 — Resilience (skills matrix, single points of failure)
+    // ═══════════════════════════════════════════════════════════════════════
+    async function loadResilience() {
+      await getCompetencies()
+      const [sRes, scRes, rcRes] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/staff?select=id,full_name,role&order=full_name`, { headers: headers(session.access_token) }),
+        fetch(`${SUPABASE_URL}/rest/v1/staff_competencies?select=staff_id,competency_id,expires_on`, { headers: headers(session.access_token) }),
+        fetch(`${SUPABASE_URL}/rest/v1/classroom_required_competencies?select=competency_id,classroom_id`, { headers: headers(session.access_token) }),
+      ])
+      staffCache = sRes.ok ? await sRes.json() : staffCache
+      staffCompsCache = scRes.ok ? await scRes.json() : staffCompsCache
+      classReqCache = rcRes.ok ? await rcRes.json() : classReqCache
+      renderResilience()
+    }
+
+    const resKpi = (num, lab, col) => `<div class="res-kpi"><div class="res-kpi-num" style="color:${col}">${num}</div><div class="res-kpi-lab">${lab}</div></div>`
+
+    function renderResilience() {
+      const staff = staffCache
+      if (!staff.length) { document.getElementById('res-score').innerHTML = `<div class="empty-state"><div class="empty-state-icon">🛡️</div><div class="empty-state-title">No staff yet</div><div class="empty-state-sub">Add staff and log their training to see resilience.</div></div>`; ['res-priorities','res-coverage','res-matrix'].forEach(id => document.getElementById(id).innerHTML = ''); return }
+      const statusOf = (sid, cid) => { const sc = staffCompsCache.find(x => x.staff_id === sid && x.competency_id === cid); if (!sc) return null; const st = expiryState(sc.expires_on); return st === 'none' ? 'valid' : st }
+      const requiredCompIds = new Set(classReqCache.map(r => r.competency_id))
+      const comps = competencyCache.filter(c => requiredCompIds.has(c.id) || staffCompsCache.some(sc => sc.competency_id === c.id))
+      const analysis = comps.map(c => {
+        const holders = staff.map(s => ({ s, st: statusOf(s.id, c.id) })).filter(h => h.st)
+        const current = holders.filter(h => h.st !== 'expired')
+        return { c, holders, current, currentCount: current.length,
+          expiring: holders.filter(h => h.st === 'expiring').length, expired: holders.filter(h => h.st === 'expired').length,
+          required: requiredCompIds.has(c.id) }
+      })
+      const uncovered = analysis.filter(a => a.currentCount === 0)
+      const spof = analysis.filter(a => a.currentCount === 1)
+      const uncoveredReq = uncovered.filter(a => a.required)
+      const spofReq = spof.filter(a => a.required)
+      const alerts = staffCompsCache.map(sc => ({ sc, st: expiryState(sc.expires_on), days: daysUntil(sc.expires_on) })).filter(a => a.st === 'expiring' || a.st === 'expired')
+      const expiredCount = alerts.filter(a => a.st === 'expired').length
+      const expiringCount = alerts.filter(a => a.st === 'expiring').length
+
+      let score = 100 - uncoveredReq.length * 22 - spofReq.length * 10 - (spof.length - spofReq.length) * 4 - expiredCount * 3 - expiringCount * 1
+      score = Math.max(0, Math.round(score))
+      const band = score >= 80 ? ['Strong', '#1a7a45', '#e6f4ec'] : score >= 55 ? ['Moderate', '#a5680a', '#fdf0d8'] : ['At risk', '#b8302d', '#fdeaea']
+
+      document.getElementById('res-score').innerHTML = `<div class="res-hero">
+        <div class="res-scorecard">
+          <div class="res-score-num" style="color:${band[1]}">${score}</div>
+          <div style="font-size:0.7rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;margin-top:5px">Resilience score</div>
+          <div class="res-band" style="background:${band[2]};color:${band[1]}">${band[0]}</div>
+        </div>
+        <div class="res-kpis">
+          ${resKpi(spof.length, 'single points of failure', spof.length ? '#b8302d' : '#1a7a45')}
+          ${resKpi(uncoveredReq.length, 'required skills uncovered', uncoveredReq.length ? '#b8302d' : '#1a7a45')}
+          ${resKpi(expiringCount, 'training expiring soon', expiringCount ? '#a5680a' : '#1a7a45')}
+          ${resKpi(expiredCount, 'training expired', expiredCount ? '#b8302d' : '#1a7a45')}
+        </div>
+      </div>`
+
+      const pri = []
+      uncoveredReq.forEach(a => pri.push({ ico:'⛔', col:'#dc2626', title:`No one currently holds ${a.c.name}`, sub:`A class requires it and no in-date staff can cover. Train at least one person — plus a backup — as a priority.` }))
+      spofReq.forEach(a => pri.push({ ico:'⚠️', col:'#dc2626', title:`Only ${a.current[0].s.full_name} holds ${a.c.name}`, sub:`Required by a class and resting on one person — if they're off, no cover. Cross-train a second.` }))
+      spof.filter(a => !a.required).forEach(a => pri.push({ ico:'⚠️', col:'#d97706', title:`Only ${a.current[0].s.full_name} holds ${a.c.name}`, sub:`A single point of failure — consider cross-training a colleague.` }))
+      uncovered.filter(a => !a.required).forEach(a => pri.push({ ico:'○', col:'#94a3b8', title:`No in-date staff hold ${a.c.name}`, sub: a.expired ? `${a.expired} lapsed — a refresher would restore cover.` : `Not currently required by a class, but worth noting.` }))
+      alerts.sort((a,b) => (a.days ?? 999) - (b.days ?? 999)).slice(0,4).forEach(a => {
+        const s = staffCache.find(x => x.id === a.sc.staff_id)
+        pri.push({ ico: a.st === 'expired' ? '🔴' : '🕒', col: a.st === 'expired' ? '#dc2626' : '#d97706',
+          title: `${s ? s.full_name : '?'} · ${compName(a.sc.competency_id)} ${a.st === 'expired' ? 'has expired' : 'expires in ' + a.days + ' days'}`,
+          sub: a.st === 'expired' ? 'Book a refresher to restore cover.' : 'Book a refresher before it lapses.' })
+      })
+      document.getElementById('res-priorities').innerHTML = pri.length
+        ? pri.slice(0,10).map(p => `<div class="res-pri" style="border-left-color:${p.col}"><div class="res-pri-ico">${p.ico}</div><div><div class="res-pri-title">${escapeHtml(p.title)}</div><div class="res-pri-sub">${escapeHtml(p.sub)}</div></div></div>`).join('')
+        : `<div class="res-pri" style="border-left-color:#2d8a5e"><div class="res-pri-ico">✅</div><div><div class="res-pri-title">No resilience risks flagged</div><div class="res-pri-sub">Every required competency has at least two in-date holders and nothing is expiring soon.</div></div></div>`
+
+      const rank = a => a.currentCount === 0 ? 0 : a.currentCount === 1 ? 1 : 2
+      const cov = [...analysis].sort((a,b) => (rank(a) - rank(b)) || (Number(b.required) - Number(a.required)) || a.c.name.localeCompare(b.c.name))
+      document.getElementById('res-coverage').innerHTML = cov.map(a => {
+        const chip = a.currentCount === 0 ? `<span class="wf-chip wf-chip-red">Uncovered</span>` : a.currentCount === 1 ? `<span class="wf-chip wf-chip-amber">1 holder</span>` : `<span class="wf-chip wf-chip-green">${a.currentCount} holders</span>`
+        const names = a.current.map(h => h.s.full_name.split(' ')[0]).join(', ') || '—'
+        return `<div class="res-cov-row">
+          <span class="res-cov-name">${escapeHtml(a.c.name)}${a.required ? ` <span class="wf-tag" style="background:#e9f1fb;color:#1f5591">Required</span>` : ''}</span>
+          ${chip}
+          <span class="res-cov-holders">${escapeHtml(names)}${a.expired ? ` · ${a.expired} lapsed` : ''}${a.expiring ? ` · ${a.expiring} expiring` : ''}</span>
+        </div>`
+      }).join('')
+
+      const dotFor = st => st === 'valid' ? '#2d8a5e' : st === 'expiring' ? '#d97706' : st === 'expired' ? '#dc2626' : null
+      let mtx = '<table class="res-matrix-tbl"><thead><tr><th class="rowh">Competency</th>'
+      staff.forEach(s => { mtx += `<th><span class="res-mava" style="background:${roleColour(s.role)}" title="${escapeHtml(s.full_name)}">${escapeHtml(wfInitials(s.full_name))}</span></th>` })
+      mtx += '<th>Cover</th></tr></thead><tbody>'
+      analysis.forEach(a => {
+        mtx += `<tr><td class="rowh">${escapeHtml(a.c.name)}${a.required ? ' <span class="wf-tag" style="background:#e9f1fb;color:#1f5591">Req</span>' : ''}</td>`
+        staff.forEach(s => { const col = dotFor(statusOf(s.id, a.c.id)); mtx += `<td>${col ? `<span class="res-dot" style="background:${col}"></span>` : '<span style="color:#d5ddd8">·</span>'}</td>` })
+        const cc = a.currentCount === 0 ? '#dc2626' : a.currentCount === 1 ? '#d97706' : '#2d8a5e'
+        mtx += `<td style="font-weight:700;color:${cc}">${a.currentCount}</td></tr>`
+      })
+      mtx += '</tbody></table>'
+      document.getElementById('res-matrix').innerHTML = analysis.length
+        ? mtx + `<div style="font-size:0.74rem;color:var(--ink-soft);margin-top:9px;display:flex;gap:16px"><span><span class="res-dot" style="background:#2d8a5e;vertical-align:middle"></span> valid</span><span><span class="res-dot" style="background:#d97706;vertical-align:middle"></span> expiring</span><span><span class="res-dot" style="background:#dc2626;vertical-align:middle"></span> expired</span></div>`
+        : '<div class="empty-state"><div class="empty-state-sub">Log some staff training to build the skills matrix.</div></div>'
     }
 
     async function saveSchoolConfig() {
