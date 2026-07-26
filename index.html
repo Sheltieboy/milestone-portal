@@ -844,6 +844,49 @@
     .tt-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: #fbfdfc; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
     .tt-sum-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 700; padding: 4px 11px; border-radius: 8px; }
     .tt-issue { font-size: 0.78rem; color: #7a4a12; }
+
+    /* ═══ Workforce design system ═══ */
+    .wf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+    .wf-card { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 17px 18px; transition: box-shadow .16s ease, transform .16s ease, border-color .16s ease; cursor: pointer; }
+    .wf-card:hover { box-shadow: 0 8px 24px rgba(26,92,58,.10); transform: translateY(-2px); border-color: #cbe4d5; }
+    .wf-card-top { display: flex; align-items: center; gap: 13px; }
+    .wf-avatar { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; font-weight: 800; font-size: 0.98rem; flex: none; color: #fff; letter-spacing: .3px; }
+    .wf-titles { flex: 1; min-width: 0; }
+    .wf-name { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 1.08rem; color: var(--ink); line-height: 1.1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .wf-meta { font-size: 0.8rem; color: var(--ink-soft); margin-top: 3px; }
+    .wf-health { width: 12px; height: 12px; border-radius: 50%; flex: none; box-shadow: 0 0 0 4px rgba(0,0,0,0.035); }
+    .wf-divider { border-top: 1px solid #eef2f0; margin: 14px 0 12px; }
+    .wf-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .wf-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 0.74rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+    .wf-chip-green { background: #e6f4ec; color: #1a7a45; }
+    .wf-chip-amber { background: #fdf0d8; color: #a5680a; }
+    .wf-chip-red { background: #fdeaea; color: #b8302d; }
+    .wf-chip-neutral { background: #eef2f0; color: #57685f; }
+    .wf-tag { font-size: 0.62rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; background: #eef2f7; color: #64748b; }
+    .wf-label { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+    .wf-meter { height: 8px; border-radius: 5px; background: #eef2f0; overflow: hidden; flex: 1; }
+    .wf-meter > span { display: block; height: 100%; border-radius: 5px; }
+    .wf-mini-comps { display: flex; flex-wrap: wrap; gap: 5px; }
+    .wf-mini { font-size: 0.68rem; font-weight: 600; padding: 3px 8px; border-radius: 7px; background: #f2f6f3; color: #46584e; display: inline-flex; align-items: center; gap: 4px; }
+    .wf-mini .d { width: 6px; height: 6px; border-radius: 50%; }
+    /* stat cards refresh */
+    .wf-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 1.6rem; }
+    .wf-stat { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 15px 17px; display: flex; align-items: center; gap: 14px; }
+    .wf-stat-ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 1.15rem; flex: none; }
+    .wf-stat-val { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 1.7rem; line-height: 1; color: var(--ink); }
+    .wf-stat-lab { font-size: 0.74rem; color: var(--ink-soft); margin-top: 3px; }
+    /* school day timeline */
+    .wf-period { display: flex; gap: 16px; align-items: center; background: #fff; border: 1px solid var(--border); border-left-width: 4px; border-radius: 11px; padding: 12px 16px; margin-bottom: 8px; cursor: pointer; transition: box-shadow .13s, transform .13s; }
+    .wf-period:hover { box-shadow: 0 4px 14px rgba(26,92,58,.09); transform: translateX(3px); }
+    .wf-period-time { font-variant-numeric: tabular-nums; font-size: 0.8rem; color: var(--ink); font-weight: 700; min-width: 108px; }
+    .wf-period-body { flex: 1; }
+    .wf-period-name { font-weight: 700; font-size: 0.95rem; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+    .wf-period-days { font-size: 0.73rem; color: var(--ink-soft); margin-top: 1px; }
+    /* grid polish */
+    .tt-assign-chip { background: #eef4f0; color: #1a5c3a; border-radius: 999px; padding: 3px 9px 3px 4px; display: inline-flex; align-items: center; gap: 5px; }
+    .tt-assign-chip .ava { width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 0.58rem; font-weight: 800; color: #fff; }
+    .tt-grid-table thead th { background: #f2f8f4; }
+    .tt-add-btn { border-radius: 999px; }
     .pt-batch-card { background: #fbfdfc; border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
     .pt-batch-cardhead { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
     .pt-batch-remove { margin-left: auto; background: none; border: none; color: #b91c1c; font-size: 0.78rem; font-weight: 600; cursor: pointer; padding: 2px 4px; }
@@ -4905,6 +4948,9 @@
     let cmpEditing = null          // { competency_id, existing }
 
     const ROLE_LABEL = { teacher:'Teacher', lsw:'Learning Support Worker', psa:'Pupil Support Assistant', snr:'Senior LSW', slt:'SLT / Leadership', nurse:'School Nurse', therapist:'Therapist', other:'Other' }
+    const ROLE_COLOUR = { teacher:'#2d8a5e', lsw:'#1f5591', snr:'#154a7c', psa:'#0891b2', slt:'#7c3aed', nurse:'#c0322f', therapist:'#b5730a', other:'#64748b' }
+    const roleColour = (r) => ROLE_COLOUR[r] || '#64748b'
+    const wfInitials = (name) => (name || '?').split(' ').filter(Boolean).map(w => w[0]).slice(0,2).join('').toUpperCase()
     const EMP_LABEL = { permanent:'Permanent', fixed_term:'Fixed term', bank:'Bank', supply:'Supply', agency:'Agency' }
     const CAT_LABEL = { medical:'Medical', behaviour:'Behaviour', communication:'Communication', manual_handling:'Moving & handling', care:'Personal care', first_aid:'First aid', training:'Training', other:'Other' }
     const daysUntil = (d) => d ? Math.round((new Date(d) - new Date()) / 86400000) : null
@@ -4942,35 +4988,45 @@
     function renderStaffStats() {
       const n = staffCache.length
       const totalComp = Object.values(staffCompCounts).reduce((a, c) => a + c.total, 0)
-      const expiring = Object.values(staffCompCounts).reduce((a, c) => a + c.expiring + c.expired, 0)
+      const attention = Object.values(staffCompCounts).reduce((a, c) => a + c.expiring + c.expired, 0)
       const cards = [
-        { label:'Staff', value:n, sub:'in your team' },
-        { label:'Competencies logged', value:totalComp, sub:'across the team' },
-        { label:'Need attention', value:expiring, sub:'expired or expiring' },
+        { ico:'👥', bg:'#e7f3ec', val:n, lab:'staff in your team' },
+        { ico:'🎓', bg:'#e9f1fb', val:totalComp, lab:'competencies logged' },
+        { ico:'⚠️', bg: attention ? '#fdeaea' : '#eef2f0', val:attention, lab:'expired or expiring' },
       ]
-      document.getElementById('staff-stats').innerHTML = cards.map(c =>
-        `<div class="stat-card"><div class="stat-card-label">${c.label}</div><div class="stat-card-value">${c.value}</div><div class="stat-card-sub">${c.sub}</div></div>`).join('')
+      const el = document.getElementById('staff-stats')
+      el.className = 'wf-stats'
+      el.innerHTML = cards.map(c => `<div class="wf-stat"><div class="wf-stat-ico" style="background:${c.bg}">${c.ico}</div><div><div class="wf-stat-val">${c.val}</div><div class="wf-stat-lab">${c.lab}</div></div></div>`).join('')
     }
 
     function renderStaffList() {
       const list = document.getElementById('staff-list')
       if (!staffCache.length) {
+        list.className = ''
         list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🧑‍🏫</div><div class="empty-state-title">No staff yet</div><div class="empty-state-sub">Add your team to build the training matrix and, soon, the timetable.</div></div>`
         return
       }
+      list.className = 'wf-grid'
       list.innerHTML = staffCache.map(s => {
         const c = staffCompCounts[s.id] || { total:0, expired:0, expiring:0 }
-        const warn = c.expired + c.expiring
-        const initials = (s.full_name || '?').split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()
-        return `<div class="team-row" style="cursor:pointer" onclick="openStaff('${s.id}')">
-          <div class="team-avatar">${escapeHtml(initials)}</div>
-          <div style="flex:1">
-            <div class="team-name">${escapeHtml(s.full_name)}${!s.active ? ' <span class="badge" style="background:#eee;color:#888">Inactive</span>' : ''}</div>
-            <div class="team-role">${ROLE_LABEL[s.role] || s.role || '—'} · ${EMP_LABEL[s.employment_type] || s.employment_type || ''}${s.contract_hours ? ' · ' + s.contract_hours + 'h' : ''}</div>
+        const health = c.expired ? '#dc2626' : (c.expiring ? '#d97706' : (c.total ? '#2d8a5e' : '#cbd5e1'))
+        const col = roleColour(s.role)
+        const lead = s.leadership_responsibilities ? s.leadership_responsibilities.split('·')[0].trim() : ''
+        return `<div class="wf-card" onclick="openStaff('${s.id}')">
+          <div class="wf-card-top">
+            <div class="wf-avatar" style="background:${col}">${escapeHtml(wfInitials(s.full_name))}</div>
+            <div class="wf-titles">
+              <div class="wf-name">${escapeHtml(s.full_name)}${!s.active ? ' <span class="wf-tag">Inactive</span>' : ''}</div>
+              <div class="wf-meta">${ROLE_LABEL[s.role] || s.role || '—'} · ${EMP_LABEL[s.employment_type] || ''}${s.contract_hours ? ' · ' + s.contract_hours + 'h' : ''}</div>
+            </div>
+            <span class="wf-health" style="background:${health}" title="Training health"></span>
           </div>
-          <div style="text-align:right;font-size:0.8rem">
-            <span class="badge badge-green">${c.total} trained</span>
-            ${warn ? `<span class="badge badge-amber" style="margin-left:4px">${warn} to review</span>` : ''}
+          <div class="wf-divider"></div>
+          <div class="wf-row">
+            <span class="wf-chip ${c.total ? 'wf-chip-green' : 'wf-chip-neutral'}">${c.total} trained</span>
+            ${c.expiring ? `<span class="wf-chip wf-chip-amber">${c.expiring} expiring</span>` : ''}
+            ${c.expired ? `<span class="wf-chip wf-chip-red">${c.expired} expired</span>` : ''}
+            ${lead ? `<span class="wf-chip wf-chip-neutral">★ ${escapeHtml(lead)}</span>` : ''}
           </div>
         </div>`
       }).join('')
@@ -5136,19 +5192,31 @@
         list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏫</div><div class="empty-state-title">No classes yet</div><div class="empty-state-sub">Add your classes, set their staffing needs, and put pupils in them — the class's needs then come straight from the pupils' passports.</div></div>`
         return
       }
+      list.className = 'wf-grid'
       list.innerHTML = classroomsCache.map(c => {
         const teacher = staffCache.find(s => s.id === c.teacher_staff_id)
         const roll = rollCount(c.id)
+        const cap = c.capacity || 0
+        const pct = cap ? Math.min(100, Math.round(roll / cap * 100)) : (roll ? 100 : 0)
         const ratio = (c.ratio_adults && c.ratio_pupils) ? `${c.ratio_adults}:${c.ratio_pupils}` : null
-        const staffing = [c.min_staff != null ? `min ${c.min_staff}` : null, c.preferred_staff != null ? `pref ${c.preferred_staff}` : null, ratio ? `ratio ${ratio}` : null].filter(Boolean).join(' · ')
-        return `<div class="team-row" style="cursor:pointer" onclick="openClassEditor('${c.id}')">
-          <div class="team-avatar" style="background:#e7f0fb;color:#1f5591">${escapeHtml((c.name||'?').slice(0,2).toUpperCase())}</div>
-          <div style="flex:1">
-            <div class="team-name">${escapeHtml(c.name)}${c.stage ? ` <span class="badge" style="background:#eef2f7;color:#64748b">${escapeHtml(c.stage)}</span>` : ''}</div>
-            <div class="team-role">${teacher ? escapeHtml(teacher.full_name) : 'No teacher set'}${c.location ? ' · ' + escapeHtml(c.location) : ''}${staffing ? ' · ' + staffing : ''}</div>
+        return `<div class="wf-card" onclick="openClassEditor('${c.id}')">
+          <div class="wf-card-top">
+            <div class="wf-avatar" style="background:#1f5591">${escapeHtml((c.name||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase())}</div>
+            <div class="wf-titles">
+              <div class="wf-name">${escapeHtml(c.name)}${c.stage ? ` <span class="wf-tag">${escapeHtml(c.stage)}</span>` : ''}</div>
+              <div class="wf-meta">${teacher ? '👤 ' + escapeHtml(teacher.full_name) : '👤 No teacher set'}${c.location ? ' · 📍 ' + escapeHtml(c.location) : ''}</div>
+            </div>
           </div>
-          <div style="text-align:right;font-size:0.8rem">
-            <span class="badge badge-green">${roll}${c.capacity ? '/' + c.capacity : ''} pupils</span>
+          <div class="wf-divider"></div>
+          <div style="display:flex;align-items:center;gap:11px;margin-bottom:11px">
+            <span class="wf-label" style="min-width:30px">Roll</span>
+            <div class="wf-meter"><span style="width:${pct}%;background:${pct >= 100 && cap ? '#d97706' : '#2d8a5e'}"></span></div>
+            <span style="font-size:0.84rem;font-weight:700;color:var(--ink)">${roll}${cap ? '/' + cap : ''}</span>
+          </div>
+          <div class="wf-row">
+            ${ratio ? `<span class="wf-chip wf-chip-neutral">Ratio ${ratio}</span>` : ''}
+            ${c.min_staff != null ? `<span class="wf-chip wf-chip-neutral">Min ${c.min_staff} staff</span>` : ''}
+            ${c.preferred_staff != null ? `<span class="wf-chip wf-chip-neutral">Preferred ${c.preferred_staff}</span>` : ''}
           </div>
         </div>`
       }).join('')
@@ -5409,7 +5477,11 @@
             ${cc.gaps.length ? `<span class="tt-gap">⚠ ${cc.gaps.map(compName).join(', ')}</span>` : ''}
             ${cc.compRag === 'green' && !cc.gaps.length && classReqCache.some(r => r.classroom_id === c.id) ? `<span class="tt-rag tt-rag-green">✓ skills</span>` : ''}
           </div>` : ''
-          html += `<td class="tt-cell ${ragClass}">${complianceLine}${asg.map(a => `<span class="tt-assign-chip" onclick="removeAssignment('${a.id}')" title="Remove">${escapeHtml(staffName(a.staff_id))} <span class="x">✕</span></span>`).join('')}<button class="tt-add-btn" onclick="openAssign('${p.id}','${c.id}')">+ staff</button></td>`
+          const chips = asg.map(a => {
+            const nm = staffName(a.staff_id); const s = staffCache.find(x => x.id === a.staff_id)
+            return `<span class="tt-assign-chip" onclick="removeAssignment('${a.id}')" title="Remove"><span class="ava" style="background:${roleColour(s && s.role)}">${escapeHtml(wfInitials(nm))}</span>${escapeHtml(nm)} <span class="x">✕</span></span>`
+          }).join('')
+          html += `<td class="tt-cell ${ragClass}">${complianceLine}${chips}<button class="tt-add-btn" onclick="openAssign('${p.id}','${c.id}')">+ staff</button></td>`
         })
         html += '</tr>'
       })
@@ -5652,13 +5724,13 @@
       const sorted = [...periodsCache].sort((a,b) => (a.sort_order ?? mins(a.start_time)) - (b.sort_order ?? mins(b.start_time)))
       list.innerHTML = sorted.map(p => {
         const col = PERIOD_COLOUR[p.kind] || '#64748b'
-        const days = (p.days || []).map(d => (TT_DAYS.find(x => x[0] === d) || [d,d])[1]).join(' ')
         const allWeek = (p.days || []).length === 5
-        return `<div class="team-row" style="cursor:pointer" onclick="openPeriodEditor('${p.id}')">
-          <div style="width:6px;height:38px;border-radius:3px;background:${col};flex:none"></div>
-          <div style="flex:1;margin-left:10px">
-            <div class="team-name">${escapeHtml(p.name)} <span class="badge" style="background:${col}22;color:${col}">${PERIOD_KIND[p.kind] || p.kind}</span></div>
-            <div class="team-role">${hhmm(p.start_time)}${p.end_time ? '–' + hhmm(p.end_time) : ''}${' · ' + (allWeek ? 'Mon–Fri' : (days || '—'))}</div>
+        const days = allWeek ? 'Mon–Fri' : ((p.days || []).map(d => (TT_DAYS.find(x => x[0] === d) || [d,d])[1]).join(' ') || '—')
+        return `<div class="wf-period" style="border-left-color:${col}" onclick="openPeriodEditor('${p.id}')">
+          <div class="wf-period-time">${hhmm(p.start_time)}${p.end_time ? '–' + hhmm(p.end_time) : ''}</div>
+          <div class="wf-period-body">
+            <div class="wf-period-name">${escapeHtml(p.name)} <span class="wf-chip" style="background:${col}1e;color:${col};padding:2px 9px">${PERIOD_KIND[p.kind] || p.kind}</span></div>
+            <div class="wf-period-days">${days}</div>
           </div>
         </div>`
       }).join('')
