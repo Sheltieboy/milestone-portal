@@ -1501,6 +1501,9 @@
         <div class="sidebar-link" onclick="showView('timetable')" id="nav-timetable">
           <span class="sidebar-link-icon">🗓️</span> Timetable
         </div>
+        <div class="sidebar-link" onclick="showView('leave')" id="nav-leave">
+          <span class="sidebar-link-icon">🏖️</span> Leave
+        </div>
         <div class="sidebar-link" onclick="showView('resilience')" id="nav-resilience">
           <span class="sidebar-link-icon">🛡️</span> Resilience
         </div>
@@ -1806,6 +1809,21 @@
         </div>
       </div>
 
+      <!-- WORKFORCE · LEAVE -->
+      <div id="view-leave" style="display:none">
+        <div class="topbar">
+          <div class="topbar-title">Leave &amp; availability</div>
+          <button class="btn btn-sm" onclick="openLeaveEditor()">+ Record leave</button>
+        </div>
+        <div class="content">
+          <div style="font-size:0.84rem;color:var(--ink-soft);margin-bottom:1.2rem;line-height:1.5">Record holidays, appointments and training here. Planned leave is automatically taken into account when you plan cover for a day.</div>
+          <div class="section-header"><div class="section-title">Upcoming &amp; current</div></div>
+          <div id="leave-upcoming"></div>
+          <div class="section-header" style="margin-top:1.6rem"><div class="section-title">Past</div></div>
+          <div id="leave-past"></div>
+        </div>
+      </div>
+
       <!-- WORKFORCE · RESILIENCE -->
       <div id="view-resilience" style="display:none">
         <div class="topbar">
@@ -1889,6 +1907,40 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- Record leave -->
+  <div class="modal-overlay" id="modal-leave">
+    <div class="modal" style="max-width:520px">
+      <div class="modal-title" id="modal-leave-title">Record leave</div>
+      <div class="form-group">
+        <label class="form-label">Staff member <span style="color:#dc2626">*</span></label>
+        <select id="leave-staff" class="form-input"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select id="leave-type" class="form-input">
+          <option value="holiday">Holiday / annual leave</option>
+          <option value="appointment">Appointment</option>
+          <option value="training">Training / course</option>
+          <option value="sickness">Sickness</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label class="form-label">From <span style="color:#dc2626">*</span></label><input type="date" id="leave-start" class="form-input" onchange="leaveSyncEnd()"></div>
+        <div class="form-group"><label class="form-label">To</label><input type="date" id="leave-end" class="form-input"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Note (optional)</label>
+        <input type="text" id="leave-note" class="form-input" placeholder="e.g. hospital appointment, Team Teach refresher">
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="saveLeave()">Save</button>
+        <button class="btn btn-secondary" onclick="deleteLeave()" id="leave-delete-btn" style="display:none;background:#fdecea;color:#b91c1c;border-color:#f5c6c2">Delete</button>
+        <button class="btn btn-secondary" onclick="closeModal('modal-leave')">Cancel</button>
+      </div>
     </div>
   </div>
 
@@ -2683,16 +2735,17 @@
     // going back/forward through existing history entries.
 
     function showView(view, _fromHistory) {
-      ['dashboard','pupils','hub','settings','sessions','staff','classrooms','timetable','resilience'].forEach(v => {
+      ['dashboard','pupils','hub','settings','sessions','staff','classrooms','timetable','resilience','leave'].forEach(v => {
         document.getElementById(`view-${v}`).style.display = v === view ? 'block' : 'none'
       })
-      ;['dashboard','pupils','settings','sessions','staff','classrooms','timetable','resilience'].forEach(v => {
+      ;['dashboard','pupils','settings','sessions','staff','classrooms','timetable','resilience','leave'].forEach(v => {
         document.getElementById(`nav-${v}`)?.classList.toggle('active', v === view)
       })
       if (view === 'staff') loadStaff().catch(() => {})
       if (view === 'classrooms') loadClassrooms().catch(() => {})
       if (view === 'timetable') loadTimetable().catch(() => {})
       if (view === 'resilience') loadResilience().catch(() => {})
+      if (view === 'leave') loadLeave().catch(() => {})
       if (view === 'sessions') loadSessions()
       if (view === 'settings') populateSettingsSchool().catch(() => {})
       if (view === 'dashboard') loadAndRenderBriefing().catch(() => {})
@@ -5677,6 +5730,98 @@
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // WORKFORCE · Leave & availability register
+    // ═══════════════════════════════════════════════════════════════════════
+    let leaveCache = []
+    let editingLeaveId = null
+    const LEAVE_TYPE = { holiday:['Holiday','#0e7490','#e0f2fe'], appointment:['Appointment','#a5680a','#fdf0d8'], training:['Training','#6d3fd4','#f0ecfa'], sickness:['Sickness','#c0322f','#fdeaea'], other:['Other','#57685f','#eef2f0'] }
+    const fmtLeave = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) : ''
+    async function ensureStaff() {
+      if (staffCache.length) return
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/staff?select=id,full_name,role&order=full_name`, { headers: headers(session.access_token) })
+      if (r.ok) staffCache = await r.json()
+    }
+
+    async function loadLeave() {
+      await ensureStaff()
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/staff_absences?select=*&order=absence_date.desc`, { headers: headers(session.access_token) })
+      leaveCache = r.ok ? await r.json() : []
+      renderLeave()
+    }
+
+    function renderLeave() {
+      const today = new Date().toISOString().slice(0,10)
+      const nm = (id) => (staffCache.find(s => s.id === id)?.full_name) || '?'
+      const card = (l) => {
+        const t = LEAVE_TYPE[l.reason] || LEAVE_TYPE.other
+        const s = staffCache.find(x => x.id === l.staff_id)
+        const range = (l.end_date && l.end_date !== l.absence_date) ? `${fmtLeave(l.absence_date)} → ${fmtLeave(l.end_date)}` : fmtLeave(l.absence_date)
+        return `<div class="wf-card" onclick="openLeaveEditor('${l.id}')">
+          <div class="wf-card-top">
+            <div class="wf-avatar" style="background:${roleColour(s && s.role)}">${escapeHtml(wfInitials(nm(l.staff_id)))}</div>
+            <div class="wf-titles">
+              <div class="wf-name" style="font-size:0.98rem">${escapeHtml(nm(l.staff_id))} <span class="wf-chip" style="background:${t[2]};color:${t[1]};padding:2px 9px">${t[0]}</span></div>
+              <div class="wf-meta">${range}${l.note ? ' · ' + escapeHtml(l.note) : ''}</div>
+            </div>
+          </div>
+        </div>`
+      }
+      const upcoming = leaveCache.filter(l => (l.end_date || l.absence_date) >= today).sort((a,b) => a.absence_date.localeCompare(b.absence_date))
+      const past = leaveCache.filter(l => (l.end_date || l.absence_date) < today)
+      const up = document.getElementById('leave-upcoming'); up.className = 'wf-grid'
+      up.innerHTML = upcoming.length ? upcoming.map(card).join('') : `<div class="empty-state"><div class="empty-state-icon">🏖️</div><div class="empty-state-title">No leave recorded</div><div class="empty-state-sub">Record holidays, appointments and training so cover planning always knows who is available.</div></div>`
+      const pastEl = document.getElementById('leave-past'); pastEl.className = 'wf-grid'
+      pastEl.innerHTML = past.length ? past.slice(0,12).map(card).join('') : `<div style="font-size:0.82rem;color:var(--ink-soft)">Nothing yet.</div>`
+    }
+
+    function openLeaveEditor(id) {
+      editingLeaveId = id || null
+      const l = id ? leaveCache.find(x => x.id === id) : null
+      document.getElementById('modal-leave-title').textContent = l ? 'Edit leave' : 'Record leave'
+      document.getElementById('leave-delete-btn').style.display = l ? 'inline-flex' : 'none'
+      document.getElementById('leave-staff').innerHTML = staffCache.map(s => `<option value="${s.id}" ${l && l.staff_id === s.id ? 'selected' : ''}>${escapeHtml(s.full_name)}</option>`).join('')
+      document.getElementById('leave-type').value = l?.reason || 'holiday'
+      document.getElementById('leave-start').value = l?.absence_date || new Date().toISOString().slice(0,10)
+      document.getElementById('leave-end').value = l?.end_date || l?.absence_date || ''
+      document.getElementById('leave-note').value = l?.note || ''
+      document.getElementById('modal-leave').style.display = 'flex'
+    }
+    function leaveSyncEnd() {
+      const s = document.getElementById('leave-start').value, e = document.getElementById('leave-end')
+      if (s && (!e.value || e.value < s)) e.value = s
+    }
+
+    async function saveLeave() {
+      const staff_id = document.getElementById('leave-staff').value
+      const start = document.getElementById('leave-start').value
+      if (!staff_id || !start) { alert('Pick a staff member and a start date.'); return }
+      let end = document.getElementById('leave-end').value || start
+      if (end < start) end = start
+      const body = { staff_id, absence_date: start, end_date: end, reason: document.getElementById('leave-type').value, note: document.getElementById('leave-note').value.trim() || null }
+      let ok = false
+      try {
+        if (editingLeaveId) {
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/staff_absences?id=eq.${editingLeaveId}`, { method:'PATCH', headers:{ ...headers(session.access_token), 'Prefer':'return=minimal' }, body: JSON.stringify(body) })
+          ok = r.ok
+        } else {
+          body.school_id = currentProfile.school_id
+          const r = await fetch(`${SUPABASE_URL}/rest/v1/staff_absences`, { method:'POST', headers:{ ...headers(session.access_token), 'Prefer':'return=minimal' }, body: JSON.stringify(body) })
+          ok = r.ok
+        }
+      } catch (e) {}
+      if (!ok) { alert('Could not save the leave. Please try again.'); return }
+      closeModal('modal-leave')
+      await loadLeave()
+    }
+
+    async function deleteLeave() {
+      if (!editingLeaveId) return
+      await fetch(`${SUPABASE_URL}/rest/v1/staff_absences?id=eq.${editingLeaveId}`, { method:'DELETE', headers: headers(session.access_token) })
+      closeModal('modal-leave')
+      await loadLeave()
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // WORKFORCE · P2 — Absence & AI cover reallocation
     // ═══════════════════════════════════════════════════════════════════════
     let coverAbsences = []
@@ -5715,7 +5860,7 @@
     }
     async function loadCover() {
       const date = document.getElementById('cover-date').value
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/staff_absences?absence_date=eq.${date}&select=*`, { headers: headers(session.access_token) })
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/staff_absences?absence_date=lte.${date}&end_date=gte.${date}&select=*`, { headers: headers(session.access_token) })
       coverAbsences = r.ok ? await r.json() : []
       renderAbsenceChips()
       const wd = ttWeekdayOf(date)
@@ -5730,10 +5875,12 @@
       const date = document.getElementById('cover-date').value
       const existing = coverAbsences.find(a => a.staff_id === staffId)
       if (existing) {
+        const adhoc = existing.absence_date === date && (existing.end_date || existing.absence_date) === date && (existing.reason === 'sickness' || !existing.reason)
+        if (!adhoc) { alert('This is planned leave (' + (LEAVE_TYPE[existing.reason] ? LEAVE_TYPE[existing.reason][0] : 'leave') + ') — edit or remove it in the Leave register.'); return }
         await fetch(`${SUPABASE_URL}/rest/v1/staff_absences?id=eq.${existing.id}`, { method:'DELETE', headers: headers(session.access_token) })
         coverAbsences = coverAbsences.filter(a => a.id !== existing.id)
       } else {
-        const r = await fetch(`${SUPABASE_URL}/rest/v1/staff_absences`, { method:'POST', headers:{ ...headers(session.access_token), 'Prefer':'return=representation' }, body: JSON.stringify({ school_id: currentProfile.school_id, staff_id: staffId, absence_date: date, reason: 'sickness' }) })
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/staff_absences`, { method:'POST', headers:{ ...headers(session.access_token), 'Prefer':'return=representation' }, body: JSON.stringify({ school_id: currentProfile.school_id, staff_id: staffId, absence_date: date, end_date: date, reason: 'sickness' }) })
         if (r.ok) coverAbsences.push((await r.json())[0])
       }
       renderAbsenceChips()
@@ -5746,8 +5893,8 @@
       const date = document.getElementById('cover-date').value
       const wd = ttWeekdayOf(date)
       if (!wd) { out.innerHTML = coverMsg('That date is a weekend — pick a school day (Mon–Fri).'); return }
-      // re-sync absences to the chosen date (in case the date changed after marking)
-      const ar = await fetch(`${SUPABASE_URL}/rest/v1/staff_absences?absence_date=eq.${date}&select=*`, { headers: headers(session.access_token) })
+      // re-sync absences to the chosen date (includes any leave range covering it)
+      const ar = await fetch(`${SUPABASE_URL}/rest/v1/staff_absences?absence_date=lte.${date}&end_date=gte.${date}&select=*`, { headers: headers(session.access_token) })
       if (ar.ok) { coverAbsences = await ar.json(); renderAbsenceChips() }
       const absentIds = new Set(coverAbsences.map(a => a.staff_id))
       if (!absentIds.size) { out.innerHTML = coverMsg("No one is marked absent for this date — click a name under <b>Who's absent?</b> so it ticks green, then Recalculate."); return }
