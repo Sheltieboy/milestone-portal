@@ -5375,8 +5375,9 @@
       if (!classes.length) { grid.innerHTML = `<div class="empty-state"><div class="empty-state-sub">No classes yet. Add classes under Classrooms first.</div></div>`; return }
       const staffName = (id) => (staffCache.find(s => s.id === id)?.full_name) || '?'
 
-      // compliance summary for the day (teaching-type periods only, to avoid flagging breaks)
-      const staffable = periods.filter(p => ['teaching','registration','therapy','swimming','outdoor','offsite'].includes(p.kind))
+      // compliance only applies to taught periods — not registration, breaks, lunch, transport
+      const isStaffable = (p) => ['teaching','therapy','swimming','outdoor','offsite'].includes(p.kind)
+      const staffable = periods.filter(isStaffable)
       let red = 0, amber = 0, green = 0
       const issues = []
       staffable.forEach(p => classes.forEach(c => {
@@ -5401,7 +5402,7 @@
         html += `<tr><td class="tt-per-cell"><div class="tt-per-name">${escapeHtml(p.name)}</div><div class="tt-per-time">${hhmm(p.start_time)}${p.end_time ? '–' + hhmm(p.end_time) : ''}</div></td>`
         classes.forEach(c => {
           const asg = cellAssignments(p.id, c.id)
-          const cc = cellCompliance(p, c)
+          const cc = isStaffable(p) ? cellCompliance(p, c) : { assessed: false, worst: 'none', ratioRag: 'none', gaps: [], compRag: 'none' }
           const ragClass = (cc.worst === 'red') ? 'rag-red' : (cc.worst === 'amber' ? 'rag-amber' : '')
           const complianceLine = cc.assessed ? `<div class="tt-compliance">
             ${cc.ratioRag !== 'none' ? `<span class="tt-rag tt-rag-${cc.ratioRag}">${cc.assigned}/${cc.required} staff</span>` : ''}
