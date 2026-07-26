@@ -5009,6 +5009,7 @@
       list.className = 'wf-grid'
       list.innerHTML = staffCache.map(s => {
         const c = staffCompCounts[s.id] || { total:0, expired:0, expiring:0 }
+        const valid = Math.max(0, c.total - c.expired - c.expiring)
         const health = c.expired ? '#dc2626' : (c.expiring ? '#d97706' : (c.total ? '#2d8a5e' : '#cbd5e1'))
         const col = roleColour(s.role)
         const lead = s.leadership_responsibilities ? s.leadership_responsibilities.split('·')[0].trim() : ''
@@ -5023,7 +5024,7 @@
           </div>
           <div class="wf-divider"></div>
           <div class="wf-row">
-            <span class="wf-chip ${c.total ? 'wf-chip-green' : 'wf-chip-neutral'}">${c.total} trained</span>
+            ${c.total ? `<span class="wf-chip wf-chip-green">${valid} valid</span>` : `<span class="wf-chip wf-chip-neutral">No training logged</span>`}
             ${c.expiring ? `<span class="wf-chip wf-chip-amber">${c.expiring} expiring</span>` : ''}
             ${c.expired ? `<span class="wf-chip wf-chip-red">${c.expired} expired</span>` : ''}
             ${lead ? `<span class="wf-chip wf-chip-neutral">★ ${escapeHtml(lead)}</span>` : ''}
