@@ -1508,6 +1508,11 @@
           <span class="sidebar-link-icon">🛡️</span> Resilience
         </div>
 
+        <div class="sidebar-section">CIRCLE</div>
+        <div class="sidebar-link" onclick="showView('circle')" id="nav-circle">
+          <span class="sidebar-link-icon">🔵</span> CIRCLE Assessment
+        </div>
+
         <div class="sidebar-section">Classroom</div>
         <div class="sidebar-link" onclick="window.location.href='games.html'" id="nav-games">
           <span class="sidebar-link-icon">🎮</span> Games Centre
@@ -1904,6 +1909,18 @@
             </div>
             <div id="cover-result"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- CIRCLE VIEW -->
+      <div id="view-circle" style="display:none">
+        <div class="topbar">
+          <div class="topbar-title">CIRCLE Assessment</div>
+          <div class="topbar-actions" id="circle-topbar-actions"></div>
+        </div>
+        <div class="content">
+          <div id="circle-license"></div>
+          <div id="circle-body"></div>
         </div>
       </div>
 
@@ -2737,12 +2754,13 @@
     // going back/forward through existing history entries.
 
     function showView(view, _fromHistory) {
-      ['dashboard','pupils','hub','settings','sessions','staff','classrooms','timetable','resilience','leave'].forEach(v => {
+      ['dashboard','pupils','hub','settings','sessions','staff','classrooms','timetable','resilience','leave','circle'].forEach(v => {
         document.getElementById(`view-${v}`).style.display = v === view ? 'block' : 'none'
       })
-      ;['dashboard','pupils','settings','sessions','staff','classrooms','timetable','resilience','leave'].forEach(v => {
+      ;['dashboard','pupils','settings','sessions','staff','classrooms','timetable','resilience','leave','circle'].forEach(v => {
         document.getElementById(`nav-${v}`)?.classList.toggle('active', v === view)
       })
+      if (view === 'circle') loadCircle().catch(() => {})
       if (view === 'staff') loadStaff().catch(() => {})
       if (view === 'classrooms') loadClassrooms().catch(() => {})
       if (view === 'timetable') loadTimetable().catch(() => {})
@@ -2770,6 +2788,183 @@
         el.textContent = sch ? `${sch.name}${sch.local_authority ? ' · ' + sch.local_authority : ''}` : '(unknown)'
       } catch {
         el.textContent = '(could not load)'
+      }
+    }
+
+    // ── CIRCLE ASSESSMENT ──
+    let circleDocs = []
+
+    const circleWarn = (title, msg) =>
+      `<div class="passport-section" style="border-left:4px solid #d97706">
+         <div class="passport-section-title" style="color:#b45309">⚠ ${escapeHtml(title)}</div>
+         <div style="color:var(--ink-soft);font-size:0.9rem">${escapeHtml(msg)}</div>
+       </div>`
+
+    async function loadCircle() {
+      const lic = document.getElementById('circle-license')
+      const body = document.getElementById('circle-body')
+      lic.innerHTML = '<div style="color:var(--ink-soft);padding:0.5rem 0">Loading…</div>'
+      body.innerHTML = ''
+      if (!currentProfile?.school_id) {
+        lic.innerHTML = circleWarn('Set your school first', 'Your account isn’t linked to a school yet — set it under Settings before using CIRCLE.')
+        return
+      }
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/circle_documents?school_id=eq.${currentProfile.school_id}&order=created_at.desc`, { headers: headers(session.access_token) })
+        circleDocs = res.ok ? await res.json() : []
+      } catch { circleDocs = [] }
+      const active = circleDocs.find(d => d.is_active)
+      renderCircleLicense(active)
+      if (active) await renderCircleInstrument()
+    }
+
+    function renderCircleLicense(active) {
+      const lic = document.getElementById('circle-license')
+      if (active) {
+        const others = circleDocs.filter(d => d.id !== active.id).length
+        lic.innerHTML =
+          `<div class="passport-section" style="border-left:4px solid var(--green-mid)">
+             <div class="passport-section-title">📄 Licensed CIRCLE resource on file</div>
+             <div style="display:flex;flex-wrap:wrap;align-items:center;gap:14px">
+               <div style="flex:1;min-width:220px">
+                 <div style="font-weight:700">${escapeHtml(active.title)}</div>
+                 <div style="color:var(--ink-soft);font-size:0.85rem">Version: ${escapeHtml(active.version_label || '—')}${others ? ` · ${others} earlier version${others>1?'s':''} retained` : ''}</div>
+               </div>
+               <button class="btn btn-sm btn-secondary" onclick="showCircleUpload(true)">Upload new version</button>
+             </div>
+             <div id="circle-upload-slot"></div>
+           </div>`
+      } else {
+        lic.innerHTML = `<div id="circle-upload-slot"></div>`
+        showCircleUpload(false)
+      }
+    }
+
+    function showCircleUpload(inline) {
+      const slot = document.getElementById('circle-upload-slot')
+      if (!slot) return
+      if (inline && slot.dataset.open === '1') { slot.innerHTML = ''; slot.dataset.open = '0'; return }
+      slot.dataset.open = '1'
+      slot.innerHTML =
+        `<div style="${inline ? 'margin-top:14px;border-top:1px solid var(--line);padding-top:14px' : ''}">
+           ${inline ? '' : `<div class="passport-section-title" style="margin-bottom:6px">📄 Add your licensed CIRCLE resource</div>
+           <p style="color:var(--ink-soft);font-size:0.9rem;margin:0 0 12px">Upload your organisation’s licensed CIRCLE resource (PDF). It becomes the authoritative source — questionnaire content is only available while a licensed copy is on file.</p>`}
+           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+             <div class="form-group" style="margin:0"><label class="form-label">Which resource</label><input id="circle-up-title" class="form-input" value="CIRCLE Primary Resource"></div>
+             <div class="form-group" style="margin:0"><label class="form-label">Edition / version <span style="color:#dc2626">*</span></label><input id="circle-up-version" class="form-input" placeholder="e.g. Primary 2021 (International v3.3)"></div>
+           </div>
+           <div class="form-group" style="margin:12px 0 0"><label class="form-label">File (PDF) <span style="color:#dc2626">*</span></label><input type="file" id="circle-up-file" accept="application/pdf" class="form-input"></div>
+           <button class="btn" id="circle-up-btn" style="margin-top:12px" onclick="uploadCircleDoc()">Upload licensed resource</button>
+           <div id="circle-up-msg" style="font-size:0.82rem;margin-top:8px;height:18px"></div>
+         </div>`
+    }
+
+    async function uploadCircleDoc() {
+      const fileEl = document.getElementById('circle-up-file')
+      const title = (document.getElementById('circle-up-title').value || '').trim() || 'CIRCLE Resource'
+      const version = (document.getElementById('circle-up-version').value || '').trim()
+      const msg = document.getElementById('circle-up-msg')
+      const btn = document.getElementById('circle-up-btn')
+      const file = fileEl?.files?.[0]
+      const fail = (t) => { msg.style.color = '#dc2626'; msg.textContent = t }
+      if (!file) return fail('Choose a PDF first.')
+      if (!version) return fail('Add the edition / version label.')
+      btn.disabled = true; msg.style.color = 'var(--ink-soft)'; msg.textContent = 'Uploading…'
+      try {
+        const path = `${currentProfile.school_id}/${docRandomId()}-${file.name.replace(/[^\w.\-]/g, '_')}`
+        const up = await fetch(`${SUPABASE_URL}/storage/v1/object/circle-resources/${path}`, {
+          method: 'POST',
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': file.type || 'application/pdf', 'x-upsert': 'true' },
+          body: file,
+        })
+        if (!up.ok) throw new Error(`Storage upload failed (${up.status})`)
+        // Only one active licensed copy at a time — retire the previous one.
+        await fetch(`${SUPABASE_URL}/rest/v1/circle_documents?school_id=eq.${currentProfile.school_id}&is_active=eq.true`, {
+          method: 'PATCH', headers: { ...headers(session.access_token), 'Prefer': 'return=minimal' }, body: JSON.stringify({ is_active: false }),
+        })
+        const ins = await fetch(`${SUPABASE_URL}/rest/v1/circle_documents`, {
+          method: 'POST', headers: { ...headers(session.access_token), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ school_id: currentProfile.school_id, title, version_label: version, storage_path: path, uploaded_by: session.user.id, is_active: true }),
+        })
+        if (!ins.ok) throw new Error(`Saving record failed (${ins.status})`)
+        msg.style.color = 'var(--green-mid)'; msg.textContent = 'Uploaded ✓'
+        await loadCircle()
+      } catch (e) {
+        fail(e.message || 'Upload failed')
+      } finally { btn.disabled = false }
+    }
+
+    const CIRCLE_RAG = { 4: '#15803d', 3: '#2d8a5e', 2: '#d97706', 1: '#dc2626' }
+
+    async function renderCircleInstrument() {
+      const body = document.getElementById('circle-body')
+      body.innerHTML = '<div style="color:var(--ink-soft);padding:1rem 0">Loading questionnaire…</div>'
+      try {
+        const H = headers(session.access_token)
+        const j = (p) => fetch(`${SUPABASE_URL}/rest/v1/${p}`, { headers: H }).then(r => r.ok ? r.json() : [])
+        const [instr, anchors, secs, items, levels, qs] = await Promise.all([
+          j('circle_instruments?code=eq.CICS&order=version.desc'),
+          j('circle_scale_anchors?order=rating.desc'),
+          j('circle_sections?order=sort_order'),
+          j('circle_items?order=sort_order'),
+          j('circle_item_levels?order=rating.desc'),
+          j('circle_item_questions?order=sort_order'),
+        ])
+        const cics = instr[0]
+        if (!cics) { body.innerHTML = circleWarn('Questionnaire content not loaded', 'The CICS content isn’t in the database yet. Run migration 0041_circle_cics_seed.sql, then reload this page.'); return }
+        const secList = secs.filter(s => s.instrument_id === cics.id).sort((a, b) => a.sort_order - b.sort_order)
+        const anchorList = anchors.filter(a => a.instrument_id === cics.id)
+
+        let html =
+          `<div class="passport-section" style="background:#eef6ff;border-left:4px solid #1f5591;margin-top:1.2rem">
+             <div class="passport-section-title" style="color:#1f5591">✅ Verification view</div>
+             <div style="color:var(--ink-soft);font-size:0.9rem">This is the exact stored questionnaire content used for assessments — rendered verbatim from your licensed source, not editable here. Please check each item against your licensed document before running assessments.</div>
+           </div>
+           <div style="margin:1.2rem 0 0.4rem">
+             <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700">${escapeHtml(cics.name)} <span style="font-size:0.9rem;color:var(--ink-soft)">${escapeHtml(cics.version)}</span></div>
+             <div style="color:var(--ink-soft);font-size:0.85rem">Source: ${escapeHtml(cics.source_edition)} · ${cics.scale_points}-point scale · items rated ${cics.develop_at_or_below} or below are development areas</div>
+           </div>`
+
+        // Scale legend
+        html += `<div class="passport-section" style="margin-top:1rem"><div class="passport-section-title">Rating scale</div>`
+        anchorList.forEach(a => {
+          html += `<div style="display:flex;gap:10px;align-items:flex-start;margin:6px 0">
+             <span style="flex:0 0 26px;height:26px;border-radius:7px;background:${CIRCLE_RAG[a.rating] || '#64748b'};color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center">${a.rating}</span>
+             <span style="font-size:0.88rem;color:var(--ink)">${escapeHtml(a.anchor)}</span></div>`
+        })
+        html += `</div>`
+
+        // Sections → items
+        let itemCount = 0
+        secList.forEach(sec => {
+          const secItems = items.filter(i => i.section_id === sec.id).sort((a, b) => a.sort_order - b.sort_order)
+          html += `<div style="margin-top:1.6rem"><div style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;color:var(--green-deep);border-bottom:2px solid var(--line);padding-bottom:6px">${escapeHtml(sec.name)} <span style="font-size:0.8rem;color:var(--ink-soft);font-family:inherit">(${secItems.length} items)</span></div>`
+          secItems.forEach(it => {
+            itemCount++
+            const lvls = levels.filter(l => l.item_id === it.id).sort((a, b) => b.rating - a.rating)
+            const iqs = qs.filter(q => q.item_id === it.id).sort((a, b) => a.sort_order - b.sort_order)
+            html += `<div class="passport-section" style="margin-top:0.9rem">
+               <div style="font-weight:700;font-size:1rem">${escapeHtml(it.name)}</div>
+               ${it.descriptor ? `<div style="color:var(--ink-soft);font-size:0.8rem;margin-bottom:8px">${escapeHtml(it.descriptor)}</div>` : ''}
+               <div style="display:flex;flex-direction:column;gap:6px">`
+            lvls.forEach(l => {
+              html += `<div style="display:flex;gap:10px;align-items:flex-start">
+                 <span style="flex:0 0 24px;height:24px;border-radius:6px;background:${CIRCLE_RAG[l.rating] || '#64748b'};color:#fff;font-weight:800;font-size:0.85rem;display:flex;align-items:center;justify-content:center">${l.rating}</span>
+                 <span style="font-size:0.87rem;color:var(--ink);line-height:1.35">${escapeHtml(l.criteria)}</span></div>`
+            })
+            html += `</div>`
+            if (iqs.length) {
+              html += `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:0.82rem;color:var(--green-mid);font-weight:600">Reflective questions (${iqs.length})</summary>
+                 <ul style="margin:8px 0 0;padding-left:18px;color:var(--ink-soft);font-size:0.85rem;line-height:1.5">${iqs.map(q => `<li>${escapeHtml(q.question)}</li>`).join('')}</ul></details>`
+            }
+            html += `</div>`
+          })
+          html += `</div>`
+        })
+        html += `<div style="color:var(--ink-soft);font-size:0.8rem;margin-top:1.5rem;text-align:center">${itemCount} items across ${secList.length} sections · CIRCLE Collaboration © — used under your organisation’s licence</div>`
+        body.innerHTML = html
+      } catch (e) {
+        body.innerHTML = circleWarn('Could not load questionnaire', e.message || String(e))
       }
     }
 
