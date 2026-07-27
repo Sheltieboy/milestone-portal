@@ -2814,8 +2814,9 @@
         circleDocs = res.ok ? await res.json() : []
       } catch { circleDocs = [] }
       const active = circleDocs.find(d => d.is_active)
+      circleActiveDoc = active || null
       renderCircleLicense(active)
-      if (active) await renderCircleInstrument()
+      if (active) await circleRenderShell()
     }
 
     function renderCircleLicense(active) {
@@ -2895,78 +2896,369 @@
     }
 
     const CIRCLE_RAG = { 4: '#15803d', 3: '#2d8a5e', 2: '#d97706', 1: '#dc2626' }
+    const circleRag = (r) => CIRCLE_RAG[r] || '#64748b'
+    let circleActiveDoc = null
+    let circleContent = null
+    let circleDraft = null
 
-    async function renderCircleInstrument() {
+    async function circleLoadContent() {
+      if (circleContent) return circleContent
+      const H = headers(session.access_token)
+      const j = (p) => fetch(`${SUPABASE_URL}/rest/v1/${p}`, { headers: H }).then(r => r.ok ? r.json() : [])
+      const [instr, anchors, secs, items, levels, qs] = await Promise.all([
+        j('circle_instruments?code=eq.CICS&order=version.desc'),
+        j('circle_scale_anchors?order=rating.desc'),
+        j('circle_sections?order=sort_order'),
+        j('circle_items?order=sort_order'),
+        j('circle_item_levels?order=rating.desc'),
+        j('circle_item_questions?order=sort_order'),
+      ])
+      const cics = instr[0]
+      if (!cics) return null
+      const sections = secs.filter(s => s.instrument_id === cics.id).sort((a, b) => a.sort_order - b.sort_order)
+      circleContent = {
+        cics,
+        anchors: anchors.filter(a => a.instrument_id === cics.id),
+        sections,
+        itemsOf: (sid) => items.filter(i => i.section_id === sid).sort((a, b) => a.sort_order - b.sort_order),
+        levelsOf: (iid) => levels.filter(l => l.item_id === iid).sort((a, b) => b.rating - a.rating),
+        questionsOf: (iid) => qs.filter(q => q.item_id === iid).sort((a, b) => a.sort_order - b.sort_order),
+        allItems: sections.flatMap(s => items.filter(i => i.section_id === s.id)),
+      }
+      return circleContent
+    }
+
+    async function circleRenderShell() {
       const body = document.getElementById('circle-body')
-      body.innerHTML = '<div style="color:var(--ink-soft);padding:1rem 0">Loading questionnaire…</div>'
-      try {
-        const H = headers(session.access_token)
-        const j = (p) => fetch(`${SUPABASE_URL}/rest/v1/${p}`, { headers: H }).then(r => r.ok ? r.json() : [])
-        const [instr, anchors, secs, items, levels, qs] = await Promise.all([
-          j('circle_instruments?code=eq.CICS&order=version.desc'),
-          j('circle_scale_anchors?order=rating.desc'),
-          j('circle_sections?order=sort_order'),
-          j('circle_items?order=sort_order'),
-          j('circle_item_levels?order=rating.desc'),
-          j('circle_item_questions?order=sort_order'),
-        ])
-        const cics = instr[0]
-        if (!cics) { body.innerHTML = circleWarn('Questionnaire content not loaded', 'The CICS content isn’t in the database yet. Run migration 0041_circle_cics_seed.sql, then reload this page.'); return }
-        const secList = secs.filter(s => s.instrument_id === cics.id).sort((a, b) => a.sort_order - b.sort_order)
-        const anchorList = anchors.filter(a => a.instrument_id === cics.id)
+      const content = await circleLoadContent()
+      if (!content) { body.innerHTML = circleWarn('Questionnaire content not loaded', 'The CICS content isn’t in the database yet. Run migration 0041_circle_cics_seed.sql, then reload this page.'); return }
+      body.innerHTML =
+        `<div class="tt-subtabs" style="margin-top:1.2rem">
+           <button class="tt-subtab active" id="circsub-assess" onclick="circleShowTab('assessments')">Assessments</button>
+           <button class="tt-subtab" id="circsub-quest" onclick="circleShowTab('questionnaire')">The questionnaire</button>
+         </div>
+         <div id="circle-tab-body"></div>`
+      circleShowTab('assessments')
+    }
 
-        let html =
-          `<div class="passport-section" style="background:#eef6ff;border-left:4px solid #1f5591;margin-top:1.2rem">
-             <div class="passport-section-title" style="color:#1f5591">✅ Verification view</div>
-             <div style="color:var(--ink-soft);font-size:0.9rem">This is the exact stored questionnaire content used for assessments — rendered verbatim from your licensed source, not editable here. Please check each item against your licensed document before running assessments.</div>
-           </div>
-           <div style="margin:1.2rem 0 0.4rem">
-             <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700">${escapeHtml(cics.name)} <span style="font-size:0.9rem;color:var(--ink-soft)">${escapeHtml(cics.version)}</span></div>
-             <div style="color:var(--ink-soft);font-size:0.85rem">Source: ${escapeHtml(cics.source_edition)} · ${cics.scale_points}-point scale · items rated ${cics.develop_at_or_below} or below are development areas</div>
-           </div>`
+    function circleShowTab(tab) {
+      document.getElementById('circsub-assess')?.classList.toggle('active', tab === 'assessments')
+      document.getElementById('circsub-quest')?.classList.toggle('active', tab === 'questionnaire')
+      const c = document.getElementById('circle-tab-body')
+      if (!c) return
+      if (tab === 'questionnaire') renderCircleQuestionnaire(c)
+      else renderCircleAssessmentsList(c)
+    }
 
-        // Scale legend
-        html += `<div class="passport-section" style="margin-top:1rem"><div class="passport-section-title">Rating scale</div>`
-        anchorList.forEach(a => {
-          html += `<div style="display:flex;gap:10px;align-items:flex-start;margin:6px 0">
-             <span style="flex:0 0 26px;height:26px;border-radius:7px;background:${CIRCLE_RAG[a.rating] || '#64748b'};color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center">${a.rating}</span>
-             <span style="font-size:0.88rem;color:var(--ink)">${escapeHtml(a.anchor)}</span></div>`
-        })
-        html += `</div>`
-
-        // Sections → items
-        let itemCount = 0
-        secList.forEach(sec => {
-          const secItems = items.filter(i => i.section_id === sec.id).sort((a, b) => a.sort_order - b.sort_order)
-          html += `<div style="margin-top:1.6rem"><div style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;color:var(--green-deep);border-bottom:2px solid var(--line);padding-bottom:6px">${escapeHtml(sec.name)} <span style="font-size:0.8rem;color:var(--ink-soft);font-family:inherit">(${secItems.length} items)</span></div>`
-          secItems.forEach(it => {
-            itemCount++
-            const lvls = levels.filter(l => l.item_id === it.id).sort((a, b) => b.rating - a.rating)
-            const iqs = qs.filter(q => q.item_id === it.id).sort((a, b) => a.sort_order - b.sort_order)
-            html += `<div class="passport-section" style="margin-top:0.9rem">
-               <div style="font-weight:700;font-size:1rem">${escapeHtml(it.name)}</div>
-               ${it.descriptor ? `<div style="color:var(--ink-soft);font-size:0.8rem;margin-bottom:8px">${escapeHtml(it.descriptor)}</div>` : ''}
-               <div style="display:flex;flex-direction:column;gap:6px">`
-            lvls.forEach(l => {
-              html += `<div style="display:flex;gap:10px;align-items:flex-start">
-                 <span style="flex:0 0 24px;height:24px;border-radius:6px;background:${CIRCLE_RAG[l.rating] || '#64748b'};color:#fff;font-weight:800;font-size:0.85rem;display:flex;align-items:center;justify-content:center">${l.rating}</span>
-                 <span style="font-size:0.87rem;color:var(--ink);line-height:1.35">${escapeHtml(l.criteria)}</span></div>`
-            })
-            html += `</div>`
-            if (iqs.length) {
-              html += `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:0.82rem;color:var(--green-mid);font-weight:600">Reflective questions (${iqs.length})</summary>
-                 <ul style="margin:8px 0 0;padding-left:18px;color:var(--ink-soft);font-size:0.85rem;line-height:1.5">${iqs.map(q => `<li>${escapeHtml(q.question)}</li>`).join('')}</ul></details>`
-            }
-            html += `</div>`
+    // ── The questionnaire (verification view) ──
+    function renderCircleQuestionnaire(container) {
+      const { cics, anchors, sections } = circleContent
+      let html =
+        `<div class="passport-section" style="background:#eef6ff;border-left:4px solid #1f5591;margin-top:1rem">
+           <div class="passport-section-title" style="color:#1f5591">✅ Verification view</div>
+           <div style="color:var(--ink-soft);font-size:0.9rem">The exact stored questionnaire content used for assessments — verbatim from your licensed source, not editable here. Check each item against your licensed document.</div>
+         </div>
+         <div style="margin:1.2rem 0 0.4rem">
+           <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700">${escapeHtml(cics.name)} <span style="font-size:0.9rem;color:var(--ink-soft)">${escapeHtml(cics.version)}</span></div>
+           <div style="color:var(--ink-soft);font-size:0.85rem">Source: ${escapeHtml(cics.source_edition)} · ${cics.scale_points}-point scale · items rated ${cics.develop_at_or_below} or below are development areas</div>
+         </div>
+         <div class="passport-section" style="margin-top:1rem"><div class="passport-section-title">Rating scale</div>`
+      anchors.forEach(a => {
+        html += `<div style="display:flex;gap:10px;align-items:flex-start;margin:6px 0">
+           <span style="flex:0 0 26px;height:26px;border-radius:7px;background:${circleRag(a.rating)};color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center">${a.rating}</span>
+           <span style="font-size:0.88rem;color:var(--ink)">${escapeHtml(a.anchor)}</span></div>`
+      })
+      html += `</div>`
+      let itemCount = 0
+      sections.forEach(sec => {
+        const secItems = circleContent.itemsOf(sec.id)
+        html += `<div style="margin-top:1.6rem"><div style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;color:var(--green-deep);border-bottom:2px solid var(--border);padding-bottom:6px">${escapeHtml(sec.name)} <span style="font-size:0.8rem;color:var(--ink-soft);font-family:inherit">(${secItems.length} items)</span></div>`
+        secItems.forEach(it => {
+          itemCount++
+          const lvls = circleContent.levelsOf(it.id)
+          const iqs = circleContent.questionsOf(it.id)
+          html += `<div class="passport-section" style="margin-top:0.9rem">
+             <div style="font-weight:700;font-size:1rem">${escapeHtml(it.name)}</div>
+             ${it.descriptor ? `<div style="color:var(--ink-soft);font-size:0.8rem;margin-bottom:8px">${escapeHtml(it.descriptor)}</div>` : ''}
+             <div style="display:flex;flex-direction:column;gap:6px">`
+          lvls.forEach(l => {
+            html += `<div style="display:flex;gap:10px;align-items:flex-start">
+               <span style="flex:0 0 24px;height:24px;border-radius:6px;background:${circleRag(l.rating)};color:#fff;font-weight:800;font-size:0.85rem;display:flex;align-items:center;justify-content:center">${l.rating}</span>
+               <span style="font-size:0.87rem;color:var(--ink);line-height:1.35">${escapeHtml(l.criteria)}</span></div>`
           })
           html += `</div>`
+          if (iqs.length) {
+            html += `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:0.82rem;color:var(--green-mid);font-weight:600">Reflective questions (${iqs.length})</summary>
+               <ul style="margin:8px 0 0;padding-left:18px;color:var(--ink-soft);font-size:0.85rem;line-height:1.5">${iqs.map(q => `<li>${escapeHtml(q.question)}</li>`).join('')}</ul></details>`
+          }
+          html += `</div>`
         })
-        html += `<div style="color:var(--ink-soft);font-size:0.8rem;margin-top:1.5rem;text-align:center">${itemCount} items across ${secList.length} sections · CIRCLE Collaboration © — used under your organisation’s licence</div>`
-        body.innerHTML = html
-      } catch (e) {
-        body.innerHTML = circleWarn('Could not load questionnaire', e.message || String(e))
-      }
+        html += `</div>`
+      })
+      html += `<div style="color:var(--ink-soft);font-size:0.8rem;margin-top:1.5rem;text-align:center">${itemCount} items across ${sections.length} sections · CIRCLE Collaboration © — used under your organisation’s licence</div>`
+      container.innerHTML = html
     }
+
+    // ── Assessments list ──
+    async function renderCircleAssessmentsList(container) {
+      container.innerHTML = '<div style="color:var(--ink-soft);padding:1rem 0">Loading…</div>'
+      let rows = []
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/circle_assessments?instrument_id=eq.${circleContent.cics.id}&order=created_at.desc`, { headers: headers(session.access_token) })
+        rows = res.ok ? await res.json() : []
+      } catch (_) {}
+      let html =
+        `<div style="display:flex;justify-content:space-between;align-items:center;margin:1.2rem 0 0.8rem">
+           <div style="font-weight:700;font-size:1.05rem">Classroom assessments</div>
+           <button class="btn btn-sm" onclick="circleStartAssessment()">+ New assessment</button>
+         </div>`
+      if (!rows.length) {
+        html += `<div class="passport-section" style="color:var(--ink-soft)">No assessments yet. Start one to rate a classroom against the CICS.</div>`
+      } else {
+        html += `<div style="display:flex;flex-direction:column;gap:8px">`
+        rows.forEach(a => {
+          const done = a.status === 'completed'
+          const badge = done
+            ? `<span style="background:#e7f5ec;color:#15803d;font-size:0.72rem;font-weight:700;padding:3px 8px;border-radius:20px">Completed</span>`
+            : `<span style="background:#fdf0d8;color:#a5680a;font-size:0.72rem;font-weight:700;padding:3px 8px;border-radius:20px">Draft</span>`
+          html += `<div class="passport-section" style="display:flex;align-items:center;gap:12px;cursor:pointer;margin:0" onclick="circleOpenAssessment('${a.id}')">
+             <div style="flex:1">
+               <div style="font-weight:700">${escapeHtml(a.subject_label || 'Classroom')}</div>
+               <div style="color:var(--ink-soft);font-size:0.8rem">${a.assessed_on ? escapeHtml(a.assessed_on) : ''}${a.evaluator ? ' · ' + escapeHtml(a.evaluator) : ''}</div>
+             </div>
+             ${badge}
+             <span style="color:var(--ink-soft)">›</span>
+           </div>`
+        })
+        html += `</div>`
+      }
+      container.innerHTML = html
+    }
+
+    // ── New assessment: meta then take ──
+    function circleStartAssessment() {
+      const c = document.getElementById('circle-tab-body')
+      const today = new Date().toISOString().slice(0, 10)
+      const who = escapeHtml(currentProfile?.full_name || document.getElementById('sidebar-name')?.textContent || '')
+      c.innerHTML =
+        `<div class="passport-section" style="margin-top:1.2rem;max-width:560px">
+           <div class="passport-section-title">New CICS assessment</div>
+           <div class="form-group"><label class="form-label">Classroom / setting <span style="color:#dc2626">*</span></label><input id="circ-meta-subject" class="form-input" placeholder="e.g. Primary 4 / Room 12"></div>
+           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+             <div class="form-group" style="margin:0"><label class="form-label">Date</label><input type="date" id="circ-meta-date" class="form-input" value="${today}"></div>
+             <div class="form-group" style="margin:0"><label class="form-label">Completed by</label><input id="circ-meta-eval" class="form-input" value="${who}"></div>
+           </div>
+           <div style="display:flex;gap:10px;margin-top:14px">
+             <button class="btn btn-secondary btn-sm" onclick="circleShowTab('assessments')">Cancel</button>
+             <button class="btn" id="circ-start-btn" onclick="circleCreateAndTake()">Start rating →</button>
+           </div>
+           <div id="circ-start-msg" style="color:#dc2626;font-size:0.8rem;margin-top:8px;height:16px"></div>
+         </div>`
+    }
+
+    async function circleCreateAndTake() {
+      const subject = (document.getElementById('circ-meta-subject').value || '').trim()
+      const date = document.getElementById('circ-meta-date').value || null
+      const evalr = (document.getElementById('circ-meta-eval').value || '').trim() || null
+      const msg = document.getElementById('circ-start-msg')
+      const btn = document.getElementById('circ-start-btn')
+      if (!subject) { msg.textContent = 'Name the classroom / setting first.'; return }
+      btn.disabled = true; msg.style.color = 'var(--ink-soft)'; msg.textContent = 'Creating…'
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/circle_assessments`, {
+          method: 'POST', headers: { ...headers(session.access_token), 'Prefer': 'return=representation' },
+          body: JSON.stringify({
+            school_id: currentProfile.school_id, instrument_id: circleContent.cics.id, instrument_version: circleContent.cics.version,
+            document_id: circleActiveDoc?.id || null, document_version: circleActiveDoc?.version_label || null,
+            subject_type: 'classroom', subject_label: subject, evaluator: evalr, assessed_on: date, status: 'draft', created_by: session.user.id,
+          }),
+        })
+        if (!res.ok) throw new Error('Could not start (' + res.status + ')')
+        const row = (await res.json())[0]
+        circleDraft = { assessment: row, responses: {} }
+        renderCircleTake()
+      } catch (e) {
+        msg.style.color = '#dc2626'; msg.textContent = e.message
+      } finally { btn.disabled = false }
+    }
+
+    // ── Take / continue / open an assessment ──
+    async function circleOpenAssessment(id) {
+      const c = document.getElementById('circle-tab-body')
+      c.innerHTML = '<div style="color:var(--ink-soft);padding:1rem 0">Loading…</div>'
+      const H = headers(session.access_token)
+      const [aRes, rRes] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/circle_assessments?id=eq.${id}`, { headers: H }),
+        fetch(`${SUPABASE_URL}/rest/v1/circle_responses?assessment_id=eq.${id}`, { headers: H }),
+      ])
+      const a = (await aRes.json())[0]
+      const resp = rRes.ok ? await rRes.json() : []
+      if (!a) { c.innerHTML = circleWarn('Not found', 'That assessment could not be loaded.'); return }
+      const responses = {}
+      resp.forEach(r => { responses[r.item_id] = { rating: r.rating, notes: r.notes || '' } })
+      circleDraft = { assessment: a, responses }
+      if (a.status === 'completed') renderCircleSummary()
+      else renderCircleTake()
+    }
+
+    function circleProgress() {
+      const total = circleContent.allItems.length
+      const done = circleContent.allItems.filter(i => circleDraft.responses[i.id]?.rating).length
+      return { done, total }
+    }
+
+    function renderCircleTake() {
+      const c = document.getElementById('circle-tab-body')
+      const a = circleDraft.assessment
+      let html =
+        `<div style="display:flex;justify-content:space-between;align-items:center;margin:1.2rem 0 0.4rem;position:sticky;top:0;background:var(--cream);padding:8px 0;z-index:2">
+           <div><div style="font-weight:700;font-size:1.05rem">${escapeHtml(a.subject_label || 'Classroom')}</div>
+             <div style="color:var(--ink-soft);font-size:0.8rem" id="circ-progress"></div></div>
+           <div style="display:flex;gap:8px">
+             <button class="btn btn-secondary btn-sm" onclick="circleSaveDraft()">Save draft</button>
+             <button class="btn btn-sm" id="circ-complete-btn" onclick="circleComplete()">Complete</button>
+           </div>
+         </div>
+         <div style="color:var(--ink-soft);font-size:0.82rem;margin-bottom:1rem">Select the statement that best describes each aspect. “4” means exceptional, not merely good.</div>`
+      circleContent.sections.forEach(sec => {
+        html += `<div style="margin-top:1.4rem"><div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--green-deep);border-bottom:2px solid var(--border);padding-bottom:5px">${escapeHtml(sec.name)}</div>`
+        circleContent.itemsOf(sec.id).forEach(it => {
+          const cur = circleDraft.responses[it.id] || {}
+          html += `<div class="passport-section" style="margin-top:0.9rem" id="circ-item-${it.id}">
+             <div style="font-weight:700">${escapeHtml(it.name)}</div>
+             ${it.descriptor ? `<div style="color:var(--ink-soft);font-size:0.78rem;margin-bottom:8px">${escapeHtml(it.descriptor)}</div>` : ''}
+             <div style="display:flex;flex-direction:column;gap:6px">`
+          circleContent.levelsOf(it.id).forEach(l => {
+            const on = cur.rating === l.rating
+            html += `<div onclick="circleSetRating('${it.id}',${l.rating})" data-item="${it.id}" data-rating="${l.rating}" style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;padding:7px 9px;border-radius:9px;border:1.5px solid ${on ? circleRag(l.rating) : 'var(--border)'};background:${on ? circleRag(l.rating) + '14' : '#fff'}">
+               <span style="flex:0 0 24px;height:24px;border-radius:6px;background:${circleRag(l.rating)};color:#fff;font-weight:800;font-size:0.85rem;display:flex;align-items:center;justify-content:center">${l.rating}</span>
+               <span style="font-size:0.86rem;color:var(--ink);line-height:1.35">${escapeHtml(l.criteria)}</span></div>`
+          })
+          html += `</div>
+             <input class="form-input" style="margin-top:8px;font-size:0.85rem" placeholder="Notes (optional)" value="${escapeHtml(cur.notes || '')}" oninput="circleSetNotes('${it.id}', this.value)">
+           </div>`
+        })
+        html += `</div>`
+      })
+      c.innerHTML = html
+      circleUpdateProgress()
+    }
+
+    function circleSetRating(itemId, rating) {
+      circleDraft.responses[itemId] = { ...(circleDraft.responses[itemId] || {}), rating }
+      const wrap = document.getElementById('circ-item-' + itemId)
+      if (wrap) wrap.querySelectorAll('[data-item="' + itemId + '"]').forEach(el => {
+        const r = Number(el.dataset.rating), on = r === rating
+        el.style.border = '1.5px solid ' + (on ? circleRag(r) : 'var(--border)')
+        el.style.background = on ? circleRag(r) + '14' : '#fff'
+      })
+      circleUpdateProgress()
+    }
+
+    function circleSetNotes(itemId, val) {
+      circleDraft.responses[itemId] = { ...(circleDraft.responses[itemId] || {}), notes: val }
+    }
+
+    function circleUpdateProgress() {
+      const { done, total } = circleProgress()
+      const el = document.getElementById('circ-progress')
+      if (el) el.textContent = `${done} of ${total} items rated`
+      const btn = document.getElementById('circ-complete-btn')
+      if (btn) { btn.disabled = done < total; btn.style.opacity = done < total ? '0.5' : '1' }
+    }
+
+    async function circleUpsertResponses() {
+      const payload = Object.entries(circleDraft.responses)
+        .filter(([, r]) => r.rating)
+        .map(([item_id, r]) => ({ assessment_id: circleDraft.assessment.id, item_id, rating: r.rating, notes: r.notes || null }))
+      if (!payload.length) return true
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/circle_responses`, {
+        method: 'POST',
+        headers: { ...headers(session.access_token), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify(payload),
+      })
+      return res.ok
+    }
+
+    async function circleSaveDraft() {
+      const ok = await circleUpsertResponses()
+      alert(ok ? 'Draft saved.' : 'Could not save the draft.')
+    }
+
+    async function circleComplete() {
+      const { done, total } = circleProgress()
+      if (done < total) { alert('Please rate all ' + total + ' items before completing.'); return }
+      if (!(await circleUpsertResponses())) { alert('Could not save responses.'); return }
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/circle_assessments?id=eq.${circleDraft.assessment.id}`, {
+        method: 'PATCH', headers: { ...headers(session.access_token), 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ status: 'completed', completed_at: new Date().toISOString() }),
+      })
+      if (!res.ok) { alert('Could not mark complete.'); return }
+      circleDraft.assessment.status = 'completed'
+      renderCircleSummary()
+    }
+
+    // ── Deterministic scoring (faithful to the licensed CICS method) ──
+    function circleScore() {
+      const dev = circleContent.cics.develop_at_or_below || 2
+      const sections = circleContent.sections.map(sec => {
+        const items = circleContent.itemsOf(sec.id).map(it => ({ it, rating: circleDraft.responses[it.id]?.rating || null }))
+        const rated = items.filter(x => x.rating)
+        const sum = rated.reduce((t, x) => t + x.rating, 0)
+        const max = items.length * 4
+        return { sec, items, sum, n: rated.length, max, mean: rated.length ? sum / rated.length : 0, pct: max ? Math.round((sum / max) * 100) : 0 }
+      })
+      const allRated = sections.flatMap(s => s.items).filter(x => x.rating)
+      const sum = allRated.reduce((t, x) => t + x.rating, 0)
+      const max = sections.reduce((t, s) => t + s.items.length, 0) * 4
+      const develop = sections.flatMap(s => s.items).filter(x => x.rating && x.rating <= dev)
+      const strengths = sections.flatMap(s => s.items).filter(x => x.rating === 4)
+      return { sections, sum, n: allRated.length, max, mean: allRated.length ? sum / allRated.length : 0, pct: max ? Math.round((sum / max) * 100) : 0, develop, strengths, dev }
+    }
+
+    function renderCircleSummary() {
+      const c = document.getElementById('circle-tab-body')
+      const a = circleDraft.assessment
+      const s = circleScore()
+      let html =
+        `<div style="display:flex;justify-content:space-between;align-items:center;margin:1.2rem 0 0.8rem;flex-wrap:wrap;gap:10px">
+           <div><div style="font-weight:700;font-size:1.15rem">${escapeHtml(a.subject_label || 'Classroom')}</div>
+             <div style="color:var(--ink-soft);font-size:0.8rem">${a.assessed_on ? escapeHtml(a.assessed_on) : ''}${a.evaluator ? ' · ' + escapeHtml(a.evaluator) : ''} · ${escapeHtml(circleContent.cics.name)} ${escapeHtml(circleContent.cics.version)}</div></div>
+           <div style="display:flex;gap:8px">
+             <button class="btn btn-secondary btn-sm" onclick="circleShowTab('assessments')">← All assessments</button>
+             <button class="btn btn-secondary btn-sm" onclick="renderCircleTake()">Edit ratings</button>
+           </div>
+         </div>
+         <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:1rem">
+           <div class="stat-card" style="flex:1;min-width:150px"><div class="stat-card-label">Overall (mean)</div><div class="stat-card-value">${s.mean.toFixed(1)}<span style="font-size:0.9rem;color:var(--ink-soft)"> / 4</span></div><div class="stat-card-sub">${s.n} items rated</div></div>
+           <div class="stat-card" style="flex:1;min-width:150px"><div class="stat-card-label">Areas to develop</div><div class="stat-card-value" style="color:${s.develop.length ? '#d97706' : '#15803d'}">${s.develop.length}</div><div class="stat-card-sub">rated ${s.dev} or below</div></div>
+           <div class="stat-card" style="flex:1;min-width:150px"><div class="stat-card-label">Derived %</div><div class="stat-card-value">${s.pct}%</div><div class="stat-card-sub">of maximum ${s.max} · derived metric</div></div>
+         </div>
+         <div class="passport-section"><div class="passport-section-title">By section</div>`
+      s.sections.forEach(sec => {
+        html += `<div style="margin:10px 0">
+           <div style="display:flex;justify-content:space-between;font-size:0.85rem"><span style="font-weight:600">${escapeHtml(sec.sec.name)}</span><span style="color:var(--ink-soft)">${sec.mean.toFixed(1)} / 4</span></div>
+           <div style="height:10px;background:#eef2f0;border-radius:6px;margin-top:4px;overflow:hidden"><div style="height:100%;width:${Math.round((sec.mean / 4) * 100)}%;background:${circleRag(Math.round(sec.mean))}"></div></div>
+         </div>`
+      })
+      html += `</div>
+         <div class="passport-section" style="margin-top:1rem"><div class="passport-section-title">Traffic-light summary</div><div style="display:flex;flex-direction:column;gap:5px">`
+      s.sections.forEach(sec => {
+        sec.items.forEach(x => {
+          const col = x.rating ? circleRag(x.rating) : '#cbd5e1'
+          html += `<div style="display:flex;align-items:center;gap:10px">
+             <span style="flex:0 0 22px;height:22px;border-radius:5px;background:${col};color:#fff;font-weight:800;font-size:0.8rem;display:flex;align-items:center;justify-content:center">${x.rating || '–'}</span>
+             <span style="font-size:0.85rem">${escapeHtml(x.it.name)}</span></div>`
+        })
+      })
+      html += `</div></div>`
+      if (s.develop.length) {
+        html += `<div class="passport-section" style="margin-top:1rem;border-left:4px solid #d97706"><div class="passport-section-title" style="color:#b45309">Priorities to develop (rated ${s.dev} or below)</div><ul style="margin:0;padding-left:18px;font-size:0.88rem;line-height:1.6">${s.develop.map(x => `<li><strong>${escapeHtml(x.it.name)}</strong> — rated ${x.rating}</li>`).join('')}</ul></div>`
+      }
+      html += `<div style="color:var(--ink-soft);font-size:0.78rem;margin-top:1rem;text-align:center">Scores are the licensed CICS ratings. “Derived %” is a summary metric only. AI interpretation, strategies and richer charts come next.</div>`
+      c.innerHTML = html
+    }
+
 
     // ── BRIEFING WIDGET ──
 
