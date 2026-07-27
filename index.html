@@ -2134,10 +2134,12 @@
           <div id="sd-sub" style="font-size:0.85rem;color:var(--ink-soft)"></div>
         </div>
         <div style="display:flex;gap:8px">
+          <button class="btn btn-sm btn-secondary" id="sd-invite-btn" onclick="inviteStaff()">Invite to app</button>
           <button class="btn btn-sm btn-secondary" onclick="editStaffFromDetail()">Edit</button>
           <button class="pt-close" onclick="closeModal('modal-staff-detail')" aria-label="Close">✕</button>
         </div>
       </div>
+      <div id="sd-invite" style="display:none;margin-top:0.6rem;background:#eef7f1;border:1px solid #cbe4d5;border-radius:10px;padding:12px 14px"></div>
       <div class="section-header" style="margin-top:1rem"><div class="section-title">Training matrix</div></div>
       <div style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:0.7rem">Tick a competency to record it, then set the level and expiry. Red = expired, amber = expiring within 60 days.</div>
       <div id="sd-training"></div>
@@ -5189,6 +5191,7 @@
       document.getElementById('sd-name').textContent = sdStaff.full_name
       document.getElementById('sd-sub').textContent = [ROLE_LABEL[sdStaff.role] || sdStaff.role, EMP_LABEL[sdStaff.employment_type] || sdStaff.employment_type, sdStaff.contract_hours ? sdStaff.contract_hours + 'h/wk' : null, sdStaff.leadership_responsibilities].filter(Boolean).join(' · ')
       document.getElementById('sd-training').innerHTML = '<div style="color:var(--ink-soft);padding:1rem">Loading…</div>'
+      renderInvite()
       document.getElementById('modal-staff-detail').style.display = 'flex'
       const res = await fetch(`${SUPABASE_URL}/rest/v1/staff_competencies?staff_id=eq.${id}&select=*`, { headers: headers(session.access_token) })
       sdComps = res.ok ? await res.json() : []
@@ -5199,6 +5202,34 @@
       if (!sdStaff) return
       closeModal('modal-staff-detail')
       openStaffEditor(sdStaff.id)
+    }
+
+    function renderInvite() {
+      const box = document.getElementById('sd-invite')
+      const btn = document.getElementById('sd-invite-btn')
+      if (!sdStaff) return
+      if (sdStaff.user_id) {
+        btn.style.display = 'none'
+        box.style.display = 'block'
+        box.innerHTML = `<div style="font-weight:700;color:#1a7a45;font-size:0.88rem">✓ Linked to the app</div><div style="font-size:0.8rem;color:var(--ink-soft);margin-top:2px">${escapeHtml(sdStaff.full_name.split(' ')[0])} has claimed their login and can see their own day and leave.</div>`
+      } else if (sdStaff.invite_token) {
+        btn.style.display = 'inline-flex'; btn.textContent = 'New code'
+        box.style.display = 'block'
+        box.innerHTML = `<div style="font-weight:700;color:var(--green-deep);font-size:0.88rem">Invite pending</div><div style="font-size:0.8rem;color:var(--ink-soft);margin:3px 0 8px">Share this code — ${escapeHtml(sdStaff.full_name.split(' ')[0])} enters it in the Milestone app under “I'm a staff member”.</div><div style="font-family:monospace;font-size:1.1rem;font-weight:700;letter-spacing:1px;color:var(--green-deep);background:#fff;border:1px dashed var(--green-mid);border-radius:8px;padding:9px 12px;text-align:center">${escapeHtml(sdStaff.invite_token)}</div>`
+      } else {
+        btn.style.display = 'inline-flex'; btn.textContent = 'Invite to app'
+        box.style.display = 'none'
+      }
+    }
+
+    async function inviteStaff() {
+      if (!sdStaff) return
+      const token = docRandomId()
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/staff?id=eq.${sdStaff.id}`, { method:'PATCH', headers:{ ...headers(session.access_token), 'Prefer':'return=minimal' }, body: JSON.stringify({ invite_token: token, invited_at: new Date().toISOString() }) })
+      if (!r.ok) { alert('Could not create an invite. Please try again.'); return }
+      sdStaff.invite_token = token
+      const cached = staffCache.find(s => s.id === sdStaff.id); if (cached) cached.invite_token = token
+      renderInvite()
     }
 
     function renderTrainingMatrix() {
