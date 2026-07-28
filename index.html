@@ -1404,6 +1404,19 @@
       .main { margin-left: 0; }
       .stats-grid { grid-template-columns: 1fr 1fr; }
     }
+
+    @keyframes circleSpin { to { transform: rotate(360deg); } }
+    @keyframes circlePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+    .circle-spinner {
+      display: inline-block; width: 22px; height: 22px; flex: 0 0 22px;
+      border: 3px solid #e6ddf7; border-top-color: #7c3aed; border-radius: 50%;
+      animation: circleSpin 0.8s linear infinite;
+    }
+    .circle-ai-loading { animation: circlePulse 1.4s ease-in-out infinite; }
+    .circle-ai-bar { height: 4px; border-radius: 3px; background: #ece5fa; overflow: hidden; margin-top: 10px; }
+    .circle-ai-bar > i { display: block; height: 100%; width: 40%; border-radius: 3px; background: #7c3aed;
+      animation: circleIndeterminate 1.3s ease-in-out infinite; }
+    @keyframes circleIndeterminate { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
   </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -3368,10 +3381,26 @@
     }
 
     // ── AI analysis (Phase 4) ──
+    const CIRCLE_AI_STEPS = ['Reading the ratings…', 'Weighing strengths and gaps…', 'Spotting patterns across domains…', 'Drafting SMART action plans…', 'Almost there…']
     async function circleGenerateAI() {
       const out = document.getElementById('circle-ai-out')
       if (!out) return
-      out.innerHTML = '<div style="color:var(--ink-soft);padding:6px 0">Analysing the scores… ✨</div>'
+      out.innerHTML =
+        `<div style="display:flex;align-items:center;gap:12px;padding:6px 0">
+           <span class="circle-spinner"></span>
+           <div style="flex:1">
+             <div id="circle-ai-msg" class="circle-ai-loading" style="font-weight:600;color:#6d3fd4;font-size:0.9rem">${CIRCLE_AI_STEPS[0]}</div>
+             <div style="font-size:0.75rem;color:var(--ink-soft)">Analysing this assessment — usually a few seconds</div>
+             <div class="circle-ai-bar"><i></i></div>
+           </div>
+         </div>`
+      let step = 0
+      const timer = setInterval(() => {
+        step = Math.min(step + 1, CIRCLE_AI_STEPS.length - 1)
+        const el = document.getElementById('circle-ai-msg')
+        if (el) el.textContent = CIRCLE_AI_STEPS[step]
+      }, 1600)
+
       const s = circleScore()
       const payload = {
         instrument: `${circleContent.cics.name} ${circleContent.cics.version}`,
@@ -3387,6 +3416,7 @@
           body: JSON.stringify(payload),
         })
         const data = await res.json().catch(() => ({}))
+        clearInterval(timer)
         if (!res.ok || data.error || !data.analysis) {
           out.innerHTML = circleWarn('Could not generate AI analysis', (data && data.error) || ('Service error ' + res.status)) +
             '<button class="btn btn-sm btn-secondary" style="margin-top:8px" onclick="circleGenerateAI()">Try again</button>'
@@ -3394,7 +3424,9 @@
         }
         renderCircleAI(out, data.analysis)
       } catch (e) {
-        out.innerHTML = circleWarn('Could not reach the AI service', String(e))
+        clearInterval(timer)
+        out.innerHTML = circleWarn('Could not reach the AI service', String(e)) +
+          '<button class="btn btn-sm btn-secondary" style="margin-top:8px" onclick="circleGenerateAI()">Try again</button>'
       }
     }
 
