@@ -52,14 +52,35 @@ exports.handler = async (event) => {
   const { instrument, subject, overallMean, sections, developItems } = payload
   if (!Array.isArray(sections) || !sections.length) return json(400, { error: 'Missing assessment scores.' })
 
-  // Retrieve the org's LICENSED strategies (RLS gates this to licensed orgs via the caller's token).
+  // Map each CICS item to the CIRCLE skill area(s) whose strategies are relevant,
+  // so we retrieve only the areas this assessment actually needs (keeps the AI
+  // call fast enough for Netlify's ~10s limit and sharpens the retrieval).
+  const AREA_MAP = {
+    'Accessibility of Space': ['gross_motor'], 'Adequacy of Space': ['gross_motor'],
+    'Sensory Space': ['attention'], 'Visual supports': ['communication'], 'Availability of Objects': ['fine_motor'],
+    'Attitudes': ['social_emotional'], 'Support and Facilitation': ['communication'], 'Relationships': ['social_emotional'],
+    'Provision of Information': ['communication'], 'Empowerment': ['social_emotional'],
+    'Activity Demands': ['attention'], 'Expectations': ['organisation'], 'Appeal of Activities': ['attention'],
+    'Routines': ['organisation'], 'Decision-making': ['social_emotional'],
+  }
+  // Prefer the flagged development items; if none, fall back to the 3 lowest-rated items.
+  const allItems = sections.flatMap((s) => (s.items || []).map((i) => ({ name: i.name, rating: i.rating })))
+  let focus = (developItems && developItems.length ? developItems : allItems.slice().sort((a, b) => (a.rating || 4) - (b.rating || 4)).slice(0, 3))
+  const areaSet = new Set()
+  focus.forEach((f) => (AREA_MAP[f.name] || []).forEach((a) => areaSet.add(a)))
+  const areas = Array.from(areaSet).slice(0, 4)
+
+  // Retrieve only the relevant LICENSED strategy areas (RLS gates to licensed orgs via the caller's token).
   let strategies = []
-  try {
-    const sRes = await fetch(`${SUPABASE_URL}/rest/v1/circle_strategies?select=title,body,source_ref,area_code&area_code=not.is.null&order=sort_order`, {
-      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${token}` },
-    })
-    if (sRes.ok) strategies = await sRes.json()
-  } catch (_) {}
+  if (areas.length) {
+    try {
+      const inList = areas.map((a) => `"${a}"`).join(',')
+      const sRes = await fetch(`${SUPABASE_URL}/rest/v1/circle_strategies?select=title,body,source_ref,area_code&area_code=in.(${inList})&order=sort_order`, {
+        headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${token}` },
+      })
+      if (sRes.ok) strategies = await sRes.json()
+    } catch (_) {}
+  }
 
   const hasLicensed = strategies.length > 0
   const licensedBlock = hasLicensed
@@ -92,7 +113,7 @@ Give a grounded interpretation: an overall summary, key strengths, areas for dev
         // returns well within Netlify's ~10s synchronous function limit (Opus 5
         // thinks by default and times out here). No `effort` — it errors on Haiku.
         model: 'claude-haiku-4-5',
-        max_tokens: 2500,
+        max_tokens: 2000,
         output_config: { format: { type: 'json_schema', schema: SCHEMA } },
         system,
         messages: [{ role: 'user', content: userMsg }],
