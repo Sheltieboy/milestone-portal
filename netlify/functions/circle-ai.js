@@ -23,8 +23,10 @@ const SCHEMA = {
     development: { type: 'array', items: { type: 'object', additionalProperties: false, properties: { area: { type: 'string' }, detail: { type: 'string' } }, required: ['area', 'detail'] } },
     patterns: { type: 'array', items: { type: 'string' } },
     priorities: { type: 'array', items: { type: 'object', additionalProperties: false, properties: { item: { type: 'string' }, why: { type: 'string' }, smart_goal: { type: 'string' }, review_weeks: { type: 'integer' }, evidence: { type: 'string' } }, required: ['item', 'why', 'smart_goal', 'review_weeks', 'evidence'] } },
+    // Strategies MUST be drawn verbatim/near-verbatim from the licensed text supplied at runtime, each with its citation.
+    strategies: { type: 'array', items: { type: 'object', additionalProperties: false, properties: { area: { type: 'string' }, recommendation: { type: 'string' }, relevance: { type: 'string' }, source_ref: { type: 'string' } }, required: ['area', 'recommendation', 'relevance', 'source_ref'] } },
   },
-  required: ['summary', 'strengths', 'development', 'patterns', 'priorities'],
+  required: ['summary', 'strengths', 'development', 'patterns', 'priorities', 'strategies'],
 }
 
 exports.handler = async (event) => {
@@ -50,11 +52,27 @@ exports.handler = async (event) => {
   const { instrument, subject, overallMean, sections, developItems } = payload
   if (!Array.isArray(sections) || !sections.length) return json(400, { error: 'Missing assessment scores.' })
 
+  // Retrieve the org's LICENSED strategies (RLS gates this to licensed orgs via the caller's token).
+  let strategies = []
+  try {
+    const sRes = await fetch(`${SUPABASE_URL}/rest/v1/circle_strategies?select=title,body,source_ref,area_code&area_code=not.is.null&order=sort_order`, {
+      headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${token}` },
+    })
+    if (sRes.ok) strategies = await sRes.json()
+  } catch (_) {}
+
+  const hasLicensed = strategies.length > 0
+  const licensedBlock = hasLicensed
+    ? strategies.map((s) => `### ${s.title}  [cite as: ${s.source_ref}]\n${s.body}`).join('\n\n')
+    : ''
+
   const system = `You support a Scottish ASN (Additional Support Needs) practitioner interpreting a completed ${instrument || 'CIRCLE'} assessment. Follow these rules exactly:
 - Base every statement ONLY on the numeric ratings provided. Never invent items, scores, or questionnaire content.
 - The ratings are the LICENSED assessment result. Everything you write is AI interpretation of those ratings — never present it as part of the licensed scoring.
-- Do NOT invent or name specific CIRCLE strategies or interventions. Recommended strategies come from the organisation's licensed CIRCLE materials, retrieved separately. You may frame the type of area to focus on and write SMART goals, but do not fabricate named CIRCLE strategies.
 - Rating scale: 4 = environment strongly supports participation (exceptional), 3 = supports participation (effective), 2 = interferes (limited support), 1 = strongly interferes. Items rated 2 or below are development areas.
+${hasLicensed
+  ? `- STRATEGIES: You are given the organisation's LICENSED CIRCLE strategies below. Populate "strategies" ONLY with strategies that appear in that licensed text — quote or very closely paraphrase the licensed wording, choose ones relevant to the development areas, and set "source_ref" to the EXACT citation given for that strategy's area. Never invent, rename, or substitute a strategy that is not in the licensed text. If no licensed strategy fits a development area, omit it rather than inventing one.`
+  : `- STRATEGIES: No licensed strategy text was available, so return an empty "strategies" array. Do NOT invent CIRCLE strategies.`}
 - Be concise, practical, encouraging, and specific to the ratings. British English.`
 
   const userMsg = `Assessment: ${instrument || 'CICS'} for "${subject || 'a classroom'}".
@@ -62,8 +80,8 @@ Overall mean rating: ${overallMean} out of 4.
 Section means and item ratings:
 ${sections.map((s) => `- ${s.name} (mean ${s.mean}): ${(s.items || []).map((i) => `${i.name}=${i.rating}`).join(', ')}`).join('\n')}
 Development areas (rated 2 or below): ${developItems && developItems.length ? developItems.map((d) => `${d.name} (${d.rating})`).join(', ') : 'none'}.
-
-Give a grounded interpretation: an overall summary, key strengths, areas for development, cross-domain patterns, and prioritised SMART action plans (each with why it matters, a SMART goal, a review timeframe in weeks, and evidence that would show improvement).`
+${hasLicensed ? `\nLICENSED CIRCLE STRATEGIES (the ONLY strategies you may recommend — cite each with its stated source_ref):\n\n${licensedBlock}\n` : ''}
+Give a grounded interpretation: an overall summary, key strengths, areas for development, cross-domain patterns, prioritised SMART action plans (each with why it matters, a SMART goal, a review timeframe in weeks, and evidence that would show improvement), and a "strategies" list drawn from the licensed strategies above (each with the area, the recommended strategy, why it is relevant to this assessment, and its source_ref citation).`
 
   try {
     const aRes = await fetch(ANTHROPIC_URL, {
@@ -74,7 +92,7 @@ Give a grounded interpretation: an overall summary, key strengths, areas for dev
         // returns well within Netlify's ~10s synchronous function limit (Opus 5
         // thinks by default and times out here). No `effort` — it errors on Haiku.
         model: 'claude-haiku-4-5',
-        max_tokens: 2000,
+        max_tokens: 2500,
         output_config: { format: { type: 'json_schema', schema: SCHEMA } },
         system,
         messages: [{ role: 'user', content: userMsg }],

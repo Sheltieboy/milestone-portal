@@ -3376,7 +3376,7 @@
          <div id="circle-ai-out"><button class="btn btn-sm" onclick="circleGenerateAI()">Generate AI analysis ✨</button></div>
        </div>`
 
-      html += `<div style="color:var(--ink-soft);font-size:0.78rem;margin-top:1rem;text-align:center">All scores are the licensed CICS ratings. “Derived %” is a summary metric only. Recommended CIRCLE strategies are drawn from your licensed document (coming next).</div>`
+      html += `<div style="color:var(--ink-soft);font-size:0.78rem;margin-top:1rem;text-align:center">All scores are the licensed CICS ratings. “Derived %” is a summary metric only. Recommended strategies are drawn from your licensed CIRCLE resource, with citations.</div>`
       c.innerHTML = html
     }
 
@@ -3450,6 +3450,17 @@
              <div style="font-size:0.83rem;color:var(--ink-soft);margin:2px 0 6px">${escapeHtml(p.why)}</div>
              <div style="font-size:0.85rem"><strong>SMART goal:</strong> ${escapeHtml(p.smart_goal)}</div>
              <div style="font-size:0.82rem;color:var(--ink-soft);margin-top:3px"><strong>Review:</strong> ${Number(p.review_weeks) || '—'} weeks · <strong>Evidence:</strong> ${escapeHtml(p.evidence)}</div>
+           </div>`
+        })
+        h += `</div>`
+      }
+      if (a.strategies && a.strategies.length) {
+        h += `<div style="font-weight:700;font-size:0.9rem;color:var(--green-deep);margin-top:14px">Recommended strategies <span style="font-weight:400;color:var(--ink-soft);font-size:0.75rem">— from your licensed CIRCLE resource</span></div><div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">`
+        a.strategies.forEach((st) => {
+          h += `<div style="border-left:3px solid #2d8a5e;background:#f2f9f5;border-radius:0 10px 10px 0;padding:9px 12px">
+             <div style="font-size:0.88rem"><strong>${escapeHtml(st.recommendation)}</strong></div>
+             <div style="font-size:0.82rem;color:var(--ink-soft);margin-top:2px">${escapeHtml(st.relevance)}</div>
+             <div style="font-size:0.72rem;color:#2d8a5e;margin-top:4px">📖 ${escapeHtml(st.source_ref)}</div>
            </div>`
         })
         h += `</div>`
