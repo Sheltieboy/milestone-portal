@@ -1,0 +1,4 @@
+# Milestone portal — static site + serverless functions
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"

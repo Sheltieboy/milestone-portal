@@ -3357,8 +3357,73 @@
         html += `<div class="passport-section" style="margin-top:1rem;border-left:4px solid #d97706"><div class="passport-section-title" style="color:#b45309">Priorities to develop (rated ${s.dev} or below)</div><ul style="margin:0;padding-left:18px;font-size:0.88rem;line-height:1.6">${s.develop.map(x => `<li><strong>${escapeHtml(x.it.name)}</strong> — rated ${x.rating}</li>`).join('')}</ul></div>`
       }
 
-      html += `<div style="color:var(--ink-soft);font-size:0.78rem;margin-top:1rem;text-align:center">All scores are the licensed CICS ratings. “Derived %” is a summary metric only. AI interpretation & recommended strategies come next (Phase 4).</div>`
+      // AI analysis (clearly separated from the licensed scores)
+      html += `<div class="passport-section" style="margin-top:1rem;border-left:4px solid #7c3aed">
+         <div class="passport-section-title" style="color:#6d3fd4">AI analysis ✨ <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-soft);font-size:0.75rem">— interpretation of the scores, not part of the licensed CICS result</span></div>
+         <div id="circle-ai-out"><button class="btn btn-sm" onclick="circleGenerateAI()">Generate AI analysis ✨</button></div>
+       </div>`
+
+      html += `<div style="color:var(--ink-soft);font-size:0.78rem;margin-top:1rem;text-align:center">All scores are the licensed CICS ratings. “Derived %” is a summary metric only. Recommended CIRCLE strategies are drawn from your licensed document (coming next).</div>`
       c.innerHTML = html
+    }
+
+    // ── AI analysis (Phase 4) ──
+    async function circleGenerateAI() {
+      const out = document.getElementById('circle-ai-out')
+      if (!out) return
+      out.innerHTML = '<div style="color:var(--ink-soft);padding:6px 0">Analysing the scores… ✨</div>'
+      const s = circleScore()
+      const payload = {
+        instrument: `${circleContent.cics.name} ${circleContent.cics.version}`,
+        subject: circleDraft.assessment.subject_label || 'a classroom',
+        overallMean: +s.mean.toFixed(2),
+        sections: s.sections.map((sec) => ({ name: sec.sec.name, mean: +sec.mean.toFixed(2), items: sec.items.map((x) => ({ name: x.it.name, rating: x.rating })) })),
+        developItems: s.develop.map((x) => ({ name: x.it.name, rating: x.rating })),
+      }
+      try {
+        const res = await fetch('/.netlify/functions/circle-ai', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+          body: JSON.stringify(payload),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok || data.error || !data.analysis) {
+          out.innerHTML = circleWarn('Could not generate AI analysis', (data && data.error) || ('Service error ' + res.status)) +
+            '<button class="btn btn-sm btn-secondary" style="margin-top:8px" onclick="circleGenerateAI()">Try again</button>'
+          return
+        }
+        renderCircleAI(out, data.analysis)
+      } catch (e) {
+        out.innerHTML = circleWarn('Could not reach the AI service', String(e))
+      }
+    }
+
+    function renderCircleAI(out, a) {
+      const list = (arr, fmt) => (arr && arr.length ? `<ul style="margin:6px 0 0;padding-left:18px;font-size:0.88rem;line-height:1.55">${arr.map(fmt).join('')}</ul>` : '<div style="color:var(--ink-soft);font-size:0.85rem">None noted.</div>')
+      let h = `<div style="background:#f6f3fc;border-radius:10px;padding:12px 14px;font-size:0.8rem;color:#6d3fd4;margin-bottom:12px">AI interpretation of the licensed scores — review before use; it does not change the CICS result.</div>`
+      if (a.summary) h += `<p style="font-size:0.92rem;line-height:1.5;margin-bottom:12px">${escapeHtml(a.summary)}</p>`
+      h += `<div style="font-weight:700;font-size:0.9rem;color:var(--green-deep);margin-top:6px">Strengths</div>`
+      h += list(a.strengths, (x) => `<li><strong>${escapeHtml(x.area)}</strong> — ${escapeHtml(x.detail)}</li>`)
+      h += `<div style="font-weight:700;font-size:0.9rem;color:#b45309;margin-top:12px">Areas for development</div>`
+      h += list(a.development, (x) => `<li><strong>${escapeHtml(x.area)}</strong> — ${escapeHtml(x.detail)}</li>`)
+      if (a.patterns && a.patterns.length) {
+        h += `<div style="font-weight:700;font-size:0.9rem;color:var(--ink);margin-top:12px">Patterns across domains</div>`
+        h += list(a.patterns, (p) => `<li>${escapeHtml(p)}</li>`)
+      }
+      if (a.priorities && a.priorities.length) {
+        h += `<div style="font-weight:700;font-size:0.9rem;color:#1f5591;margin-top:12px">Priority action plans (SMART)</div><div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">`
+        a.priorities.forEach((p) => {
+          h += `<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px">
+             <div style="font-weight:700;font-size:0.88rem">${escapeHtml(p.item)}</div>
+             <div style="font-size:0.83rem;color:var(--ink-soft);margin:2px 0 6px">${escapeHtml(p.why)}</div>
+             <div style="font-size:0.85rem"><strong>SMART goal:</strong> ${escapeHtml(p.smart_goal)}</div>
+             <div style="font-size:0.82rem;color:var(--ink-soft);margin-top:3px"><strong>Review:</strong> ${Number(p.review_weeks) || '—'} weeks · <strong>Evidence:</strong> ${escapeHtml(p.evidence)}</div>
+           </div>`
+        })
+        h += `</div>`
+      }
+      h += `<button class="btn btn-sm btn-secondary" style="margin-top:12px" onclick="circleGenerateAI()">Regenerate</button>`
+      out.innerHTML = h
     }
 
 
