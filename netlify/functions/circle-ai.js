@@ -52,22 +52,13 @@ exports.handler = async (event) => {
   const { instrument, subject, overallMean, sections, developItems } = payload
   if (!Array.isArray(sections) || !sections.length) return json(400, { error: 'Missing assessment scores.' })
 
-  // Map each CICS item to the CIRCLE skill area(s) whose strategies are relevant,
-  // so we retrieve only the areas this assessment actually needs (keeps the AI
-  // call fast enough for Netlify's ~10s limit and sharpens the retrieval).
-  const AREA_MAP = {
-    'Accessibility of Space': ['gross_motor'], 'Adequacy of Space': ['gross_motor'],
-    'Sensory Space': ['attention'], 'Visual supports': ['communication'], 'Availability of Objects': ['fine_motor'],
-    'Attitudes': ['social_emotional'], 'Support and Facilitation': ['communication'], 'Relationships': ['social_emotional'],
-    'Provision of Information': ['communication'], 'Empowerment': ['social_emotional'],
-    'Activity Demands': ['attention'], 'Expectations': ['organisation'], 'Appeal of Activities': ['attention'],
-    'Routines': ['organisation'], 'Decision-making': ['social_emotional'],
-  }
-  // Prefer the flagged development items; if none, fall back to the 3 lowest-rated items.
-  const allItems = sections.flatMap((s) => (s.items || []).map((i) => ({ name: i.name, rating: i.rating })))
-  let focus = (developItems && developItems.length ? developItems : allItems.slice().sort((a, b) => (a.rating || 4) - (b.rating || 4)).slice(0, 3))
+  // Each item carries its CIRCLE strategy area (resolved on the client for both
+  // CICS and CPS). Retrieve only the areas this assessment needs — keeps the AI
+  // call fast (Netlify ~10s) and sharpens the retrieval.
+  const allItems = sections.flatMap((s) => (s.items || []).map((i) => ({ name: i.name, rating: i.rating, area: i.area })))
+  const focus = (developItems && developItems.length ? developItems : allItems.slice().sort((a, b) => (a.rating || 4) - (b.rating || 4)).slice(0, 3))
   const areaSet = new Set()
-  focus.forEach((f) => (AREA_MAP[f.name] || []).forEach((a) => areaSet.add(a)))
+  focus.forEach((f) => { if (f.area) areaSet.add(f.area) })
   const areas = Array.from(areaSet).slice(0, 4)
 
   // Retrieve only the relevant LICENSED strategy areas (RLS gates to licensed orgs via the caller's token).
@@ -90,7 +81,7 @@ exports.handler = async (event) => {
   const system = `You support a Scottish ASN (Additional Support Needs) practitioner interpreting a completed ${instrument || 'CIRCLE'} assessment. Follow these rules exactly:
 - Base every statement ONLY on the numeric ratings provided. Never invent items, scores, or questionnaire content.
 - The ratings are the LICENSED assessment result. Everything you write is AI interpretation of those ratings — never present it as part of the licensed scoring.
-- Rating scale: 4 = environment strongly supports participation (exceptional), 3 = supports participation (effective), 2 = interferes (limited support), 1 = strongly interferes. Items rated 2 or below are development areas.
+- Rating scale: 4 = strongly supports participation, 3 = supports participation, 2 = interferes (limited), 1 = strongly interferes. Items rated 2 or below are development areas.
 ${hasLicensed
   ? `- STRATEGIES: You are given the organisation's LICENSED CIRCLE strategies below. Populate "strategies" ONLY with strategies that appear in that licensed text — quote or very closely paraphrase the licensed wording, choose ones relevant to the development areas, and set "source_ref" to the EXACT citation given for that strategy's area. Never invent, rename, or substitute a strategy that is not in the licensed text. If no licensed strategy fits a development area, omit it rather than inventing one.`
   : `- STRATEGIES: No licensed strategy text was available, so return an empty "strategies" array. Do NOT invent CIRCLE strategies.`}

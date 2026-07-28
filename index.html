@@ -2911,44 +2911,49 @@
     const CIRCLE_RAG = { 4: '#15803d', 3: '#2d8a5e', 2: '#d97706', 1: '#dc2626' }
     const circleRag = (r) => CIRCLE_RAG[r] || '#64748b'
     let circleActiveDoc = null
-    let circleContent = null
+    let circleInstruments = null   // all loaded instrument bundles (CICS, CPS, …)
+    let circleContent = null       // the active instrument bundle
     let circleDraft = null
 
     async function circleLoadContent() {
-      if (circleContent) return circleContent
+      if (circleInstruments) return circleInstruments
       const H = headers(session.access_token)
       const j = (p) => fetch(`${SUPABASE_URL}/rest/v1/${p}`, { headers: H }).then(r => r.ok ? r.json() : [])
       const [instr, anchors, secs, items, levels, qs] = await Promise.all([
-        j('circle_instruments?code=eq.CICS&order=version.desc'),
+        j('circle_instruments?order=subject_type.asc,code.asc'),
         j('circle_scale_anchors?order=rating.desc'),
         j('circle_sections?order=sort_order'),
         j('circle_items?order=sort_order'),
         j('circle_item_levels?order=rating.desc'),
         j('circle_item_questions?order=sort_order'),
       ])
-      const cics = instr[0]
-      if (!cics) return null
-      const sections = secs.filter(s => s.instrument_id === cics.id).sort((a, b) => a.sort_order - b.sort_order)
-      circleContent = {
-        cics,
-        anchors: anchors.filter(a => a.instrument_id === cics.id),
-        sections,
-        itemsOf: (sid) => items.filter(i => i.section_id === sid).sort((a, b) => a.sort_order - b.sort_order),
-        levelsOf: (iid) => levels.filter(l => l.item_id === iid).sort((a, b) => b.rating - a.rating),
-        questionsOf: (iid) => qs.filter(q => q.item_id === iid).sort((a, b) => a.sort_order - b.sort_order),
-        allItems: sections.flatMap(s => items.filter(i => i.section_id === s.id)),
-      }
-      return circleContent
+      if (!instr || !instr.length) return null
+      circleInstruments = instr.map((inst) => {
+        const sections = secs.filter(s => s.instrument_id === inst.id).sort((a, b) => a.sort_order - b.sort_order)
+        return {
+          instrument: inst,
+          anchors: anchors.filter(a => a.instrument_id === inst.id),
+          sections,
+          itemsOf: (sid) => items.filter(i => i.section_id === sid).sort((a, b) => a.sort_order - b.sort_order),
+          levelsOf: (iid) => levels.filter(l => l.item_id === iid).sort((a, b) => b.rating - a.rating),
+          questionsOf: (iid) => qs.filter(q => q.item_id === iid).sort((a, b) => a.sort_order - b.sort_order),
+          allItems: sections.flatMap(s => items.filter(i => i.section_id === s.id).sort((a, b) => a.sort_order - b.sort_order)),
+        }
+      })
+      return circleInstruments
     }
+    const circleBundle = (instrumentId) => (circleInstruments || []).find(b => b.instrument.id === instrumentId)
+    function circleUse(instrumentId) { const b = circleBundle(instrumentId); if (b) circleContent = b; return b }
 
     async function circleRenderShell() {
       const body = document.getElementById('circle-body')
-      const content = await circleLoadContent()
-      if (!content) { body.innerHTML = circleWarn('Questionnaire content not loaded', 'The CICS content isn’t in the database yet. Run migration 0041_circle_cics_seed.sql, then reload this page.'); return }
+      const insts = await circleLoadContent()
+      if (!insts || !insts.length) { body.innerHTML = circleWarn('Questionnaire content not loaded', 'The instrument content isn’t in the database yet. Run migrations 0041 (CICS) and 0044 (CPS), then reload this page.'); return }
+      circleContent = insts[0]
       body.innerHTML =
         `<div class="tt-subtabs" style="margin-top:1.2rem">
            <button class="tt-subtab active" id="circsub-assess" onclick="circleShowTab('assessments')">Assessments</button>
-           <button class="tt-subtab" id="circsub-quest" onclick="circleShowTab('questionnaire')">The questionnaire</button>
+           <button class="tt-subtab" id="circsub-quest" onclick="circleShowTab('questionnaire')">The questionnaires</button>
          </div>
          <div id="circle-tab-body"></div>`
       circleShowTab('assessments')
@@ -2965,8 +2970,10 @@
 
     // ── The questionnaire (verification view) ──
     function renderCircleQuestionnaire(container) {
-      const { cics, anchors, sections } = circleContent
-      let html =
+      const { instrument: cics, anchors, sections } = circleContent
+      const switcher = (circleInstruments || []).length > 1
+        ? `<div style="display:flex;gap:8px;margin-top:1rem">${circleInstruments.map(b => `<button class="btn btn-sm ${b.instrument.id === circleContent.instrument.id ? '' : 'btn-secondary'}" onclick="circleUse('${b.instrument.id}'); renderCircleQuestionnaire(document.getElementById('circle-tab-body'))">${escapeHtml(b.instrument.code)} — ${escapeHtml(b.instrument.subject_type)}</button>`).join('')}</div>` : ''
+      let html = switcher +
         `<div class="passport-section" style="background:#eef6ff;border-left:4px solid #1f5591;margin-top:1rem">
            <div class="passport-section-title" style="color:#1f5591">✅ Verification view</div>
            <div style="color:var(--ink-soft);font-size:0.9rem">The exact stored questionnaire content used for assessments — verbatim from your licensed source, not editable here. Check each item against your licensed document.</div>
@@ -3017,16 +3024,17 @@
       container.innerHTML = '<div style="color:var(--ink-soft);padding:1rem 0">Loading…</div>'
       let rows = []
       try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/circle_assessments?instrument_id=eq.${circleContent.cics.id}&order=created_at.desc`, { headers: headers(session.access_token) })
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/circle_assessments?order=created_at.desc`, { headers: headers(session.access_token) })
         rows = res.ok ? await res.json() : []
       } catch (_) {}
+      const instCode = (id) => { const b = circleBundle(id); return b ? b.instrument.code : '' }
       let html =
         `<div style="display:flex;justify-content:space-between;align-items:center;margin:1.2rem 0 0.8rem">
-           <div style="font-weight:700;font-size:1.05rem">Classroom assessments</div>
+           <div style="font-weight:700;font-size:1.05rem">Assessments</div>
            <button class="btn btn-sm" onclick="circleStartAssessment()">+ New assessment</button>
          </div>`
       if (!rows.length) {
-        html += `<div class="passport-section" style="color:var(--ink-soft)">No assessments yet. Start one to rate a classroom against the CICS.</div>`
+        html += `<div class="passport-section" style="color:var(--ink-soft)">No assessments yet. Start one to rate a classroom (CICS) or a pupil (CPS).</div>`
       } else {
         html += `<div style="display:flex;flex-direction:column;gap:8px">`
         rows.forEach(a => {
@@ -3034,11 +3042,14 @@
           const badge = done
             ? `<span style="background:#e7f5ec;color:#15803d;font-size:0.72rem;font-weight:700;padding:3px 8px;border-radius:20px">Completed</span>`
             : `<span style="background:#fdf0d8;color:#a5680a;font-size:0.72rem;font-weight:700;padding:3px 8px;border-radius:20px">Draft</span>`
+          const code = instCode(a.instrument_id)
+          const instBadge = code ? `<span style="background:#eef2fb;color:#1f5591;font-size:0.68rem;font-weight:700;padding:3px 8px;border-radius:20px">${escapeHtml(code)}</span>` : ''
           html += `<div class="passport-section" style="display:flex;align-items:center;gap:12px;cursor:pointer;margin:0" onclick="circleOpenAssessment('${a.id}')">
              <div style="flex:1">
-               <div style="font-weight:700">${escapeHtml(a.subject_label || 'Classroom')}</div>
+               <div style="font-weight:700">${escapeHtml(a.subject_label || (a.subject_type === 'pupil' ? 'Pupil' : 'Classroom'))}</div>
                <div style="color:var(--ink-soft);font-size:0.8rem">${a.assessed_on ? escapeHtml(a.assessed_on) : ''}${a.evaluator ? ' · ' + escapeHtml(a.evaluator) : ''}</div>
              </div>
+             ${instBadge}
              ${badge}
              <span style="color:var(--ink-soft)">›</span>
            </div>`
@@ -3053,10 +3064,12 @@
       const c = document.getElementById('circle-tab-body')
       const today = new Date().toISOString().slice(0, 10)
       const who = escapeHtml(currentProfile?.full_name || document.getElementById('sidebar-name')?.textContent || '')
+      const instOptions = (circleInstruments || []).map((b) => `<option value="${b.instrument.id}">${escapeHtml(b.instrument.code)} — ${escapeHtml(b.instrument.name)} (${escapeHtml(b.instrument.subject_type)})</option>`).join('')
       c.innerHTML =
         `<div class="passport-section" style="margin-top:1.2rem;max-width:560px">
-           <div class="passport-section-title">New CICS assessment</div>
-           <div class="form-group"><label class="form-label">Classroom / setting <span style="color:#dc2626">*</span></label><input id="circ-meta-subject" class="form-input" placeholder="e.g. Primary 4 / Room 12"></div>
+           <div class="passport-section-title">New assessment</div>
+           <div class="form-group"><label class="form-label">Instrument</label><select id="circ-meta-instrument" class="form-input">${instOptions}</select></div>
+           <div class="form-group"><label class="form-label">Classroom or pupil <span style="color:#dc2626">*</span></label><input id="circ-meta-subject" class="form-input" placeholder="e.g. Primary 4 / Room 12 — or a pupil’s name/initials"></div>
            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
              <div class="form-group" style="margin:0"><label class="form-label">Date</label><input type="date" id="circ-meta-date" class="form-input" value="${today}"></div>
              <div class="form-group" style="margin:0"><label class="form-label">Completed by</label><input id="circ-meta-eval" class="form-input" value="${who}"></div>
@@ -3075,15 +3088,17 @@
       const evalr = (document.getElementById('circ-meta-eval').value || '').trim() || null
       const msg = document.getElementById('circ-start-msg')
       const btn = document.getElementById('circ-start-btn')
-      if (!subject) { msg.textContent = 'Name the classroom / setting first.'; return }
+      if (!subject) { msg.textContent = 'Name the classroom or pupil first.'; return }
+      const instId = document.getElementById('circ-meta-instrument')?.value
+      const bundle = circleUse(instId) || circleContent
       btn.disabled = true; msg.style.color = 'var(--ink-soft)'; msg.textContent = 'Creating…'
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/circle_assessments`, {
           method: 'POST', headers: { ...headers(session.access_token), 'Prefer': 'return=representation' },
           body: JSON.stringify({
-            school_id: currentProfile.school_id, instrument_id: circleContent.cics.id, instrument_version: circleContent.cics.version,
+            school_id: currentProfile.school_id, instrument_id: bundle.instrument.id, instrument_version: bundle.instrument.version,
             document_id: circleActiveDoc?.id || null, document_version: circleActiveDoc?.version_label || null,
-            subject_type: 'classroom', subject_label: subject, evaluator: evalr, assessed_on: date, status: 'draft', created_by: session.user.id,
+            subject_type: bundle.instrument.subject_type, subject_label: subject, evaluator: evalr, assessed_on: date, status: 'draft', created_by: session.user.id,
           }),
         })
         if (!res.ok) throw new Error('Could not start (' + res.status + ')')
@@ -3107,6 +3122,7 @@
       const a = (await aRes.json())[0]
       const resp = rRes.ok ? await rRes.json() : []
       if (!a) { c.innerHTML = circleWarn('Not found', 'That assessment could not be loaded.'); return }
+      if (!circleUse(a.instrument_id)) { c.innerHTML = circleWarn('Instrument not loaded', 'This assessment uses an instrument that isn’t loaded. Run its migration and reload.'); return }
       const responses = {}
       resp.forEach(r => { responses[r.item_id] = { rating: r.rating, notes: r.notes || '' } })
       circleDraft = { assessment: a, responses }
@@ -3123,29 +3139,36 @@
     function renderCircleTake() {
       const c = document.getElementById('circle-tab-body')
       const a = circleDraft.assessment
+      const isCps = circleContent.instrument.code === 'CPS'
+      const intro = isCps
+        ? 'Rate each statement on the 4-point scale — 4 = observed almost all of the time, 1 = observed hardly any of the time.'
+        : 'Select the statement that best describes each aspect. “4” means exceptional, not merely good.'
       let html =
         `<div style="display:flex;justify-content:space-between;align-items:center;margin:1.2rem 0 0.4rem;position:sticky;top:0;background:var(--cream);padding:8px 0;z-index:2">
-           <div><div style="font-weight:700;font-size:1.05rem">${escapeHtml(a.subject_label || 'Classroom')}</div>
+           <div><div style="font-weight:700;font-size:1.05rem">${escapeHtml(a.subject_label || (a.subject_type === 'pupil' ? 'Pupil' : 'Classroom'))} <span style="font-size:0.75rem;color:var(--ink-soft);font-weight:600">${escapeHtml(circleContent.instrument.code)}</span></div>
              <div style="color:var(--ink-soft);font-size:0.8rem" id="circ-progress"></div></div>
            <div style="display:flex;gap:8px">
              <button class="btn btn-secondary btn-sm" onclick="circleSaveDraft()">Save draft</button>
              <button class="btn btn-sm" id="circ-complete-btn" onclick="circleComplete()">Complete</button>
            </div>
          </div>
-         <div style="color:var(--ink-soft);font-size:0.82rem;margin-bottom:1rem">Select the statement that best describes each aspect. “4” means exceptional, not merely good.</div>`
+         <div style="color:var(--ink-soft);font-size:0.82rem;margin-bottom:1rem">${intro}</div>`
       circleContent.sections.forEach(sec => {
         html += `<div style="margin-top:1.4rem"><div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--green-deep);border-bottom:2px solid var(--border);padding-bottom:5px">${escapeHtml(sec.name)}</div>`
         circleContent.itemsOf(sec.id).forEach(it => {
           const cur = circleDraft.responses[it.id] || {}
+          // CICS items carry per-rating criteria; CPS items rate against the shared scale anchors.
+          const lvls = circleContent.levelsOf(it.id)
+          const options = lvls.length ? lvls.map(l => ({ rating: l.rating, label: l.criteria })) : circleContent.anchors.map(an => ({ rating: an.rating, label: an.anchor }))
           html += `<div class="passport-section" style="margin-top:0.9rem" id="circ-item-${it.id}">
              <div style="font-weight:700">${escapeHtml(it.name)}</div>
              ${it.descriptor ? `<div style="color:var(--ink-soft);font-size:0.78rem;margin-bottom:8px">${escapeHtml(it.descriptor)}</div>` : ''}
              <div style="display:flex;flex-direction:column;gap:6px">`
-          circleContent.levelsOf(it.id).forEach(l => {
-            const on = cur.rating === l.rating
-            html += `<div onclick="circleSetRating('${it.id}',${l.rating})" data-item="${it.id}" data-rating="${l.rating}" style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;padding:7px 9px;border-radius:9px;border:1.5px solid ${on ? circleRag(l.rating) : 'var(--border)'};background:${on ? circleRag(l.rating) + '14' : '#fff'}">
-               <span style="flex:0 0 24px;height:24px;border-radius:6px;background:${circleRag(l.rating)};color:#fff;font-weight:800;font-size:0.85rem;display:flex;align-items:center;justify-content:center">${l.rating}</span>
-               <span style="font-size:0.86rem;color:var(--ink);line-height:1.35">${escapeHtml(l.criteria)}</span></div>`
+          options.forEach(o => {
+            const on = cur.rating === o.rating
+            html += `<div onclick="circleSetRating('${it.id}',${o.rating})" data-item="${it.id}" data-rating="${o.rating}" style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;padding:7px 9px;border-radius:9px;border:1.5px solid ${on ? circleRag(o.rating) : 'var(--border)'};background:${on ? circleRag(o.rating) + '14' : '#fff'}">
+               <span style="flex:0 0 24px;height:24px;border-radius:6px;background:${circleRag(o.rating)};color:#fff;font-weight:800;font-size:0.85rem;display:flex;align-items:center;justify-content:center">${o.rating}</span>
+               <span style="font-size:0.86rem;color:var(--ink);line-height:1.35">${escapeHtml(o.label)}</span></div>`
           })
           html += `</div>
              <input class="form-input" style="margin-top:8px;font-size:0.85rem" placeholder="Notes (optional)" value="${escapeHtml(cur.notes || '')}" oninput="circleSetNotes('${it.id}', this.value)">
@@ -3213,7 +3236,7 @@
 
     // ── Deterministic scoring (faithful to the licensed CICS method) ──
     function circleScore() {
-      const dev = circleContent.cics.develop_at_or_below || 2
+      const dev = circleContent.instrument.develop_at_or_below || 2
       const sections = circleContent.sections.map(sec => {
         const items = circleContent.itemsOf(sec.id).map(it => ({ it, rating: circleDraft.responses[it.id]?.rating || null }))
         const rated = items.filter(x => x.rating)
@@ -3287,7 +3310,7 @@
       c.innerHTML = '<div style="color:var(--ink-soft);padding:1rem 0">Building report…</div>'
 
       let history = []
-      try { history = await circleFetchHistory(a.subject_label, circleContent.cics.id) } catch (_) {}
+      try { history = await circleFetchHistory(a.subject_label, circleContent.instrument.id) } catch (_) {}
       const thisTime = a.completed_at || ''
       const others = history.filter(h => h.a.id !== a.id)
       const before = others.filter(h => (h.a.completed_at || '') < thisTime)
@@ -3303,7 +3326,7 @@
       let html =
         `<div style="display:flex;justify-content:space-between;align-items:center;margin:1.2rem 0 0.8rem;flex-wrap:wrap;gap:10px">
            <div><div style="font-weight:700;font-size:1.15rem">${escapeHtml(a.subject_label || 'Classroom')}</div>
-             <div style="color:var(--ink-soft);font-size:0.8rem">${a.assessed_on ? escapeHtml(a.assessed_on) : ''}${a.evaluator ? ' · ' + escapeHtml(a.evaluator) : ''} · ${escapeHtml(circleContent.cics.name)} ${escapeHtml(circleContent.cics.version)}</div></div>
+             <div style="color:var(--ink-soft);font-size:0.8rem">${a.assessed_on ? escapeHtml(a.assessed_on) : ''}${a.evaluator ? ' · ' + escapeHtml(a.evaluator) : ''} · ${escapeHtml(circleContent.instrument.name)} ${escapeHtml(circleContent.instrument.version)}</div></div>
            <div style="display:flex;gap:8px">
              <button class="btn btn-secondary btn-sm" onclick="circleShowTab('assessments')">← All assessments</button>
              <button class="btn btn-secondary btn-sm" onclick="renderCircleTake()">Edit ratings</button>
@@ -3372,17 +3395,30 @@
 
       // AI analysis (clearly separated from the licensed scores)
       html += `<div class="passport-section" style="margin-top:1rem;border-left:4px solid #7c3aed">
-         <div class="passport-section-title" style="color:#6d3fd4">AI analysis ✨ <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-soft);font-size:0.75rem">— interpretation of the scores, not part of the licensed CICS result</span></div>
+         <div class="passport-section-title" style="color:#6d3fd4">AI analysis ✨ <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-soft);font-size:0.75rem">— interpretation of the scores, not part of the licensed result</span></div>
          <div id="circle-ai-out"><button class="btn btn-sm" onclick="circleGenerateAI()">Generate AI analysis ✨</button></div>
        </div>`
 
-      html += `<div style="color:var(--ink-soft);font-size:0.78rem;margin-top:1rem;text-align:center">All scores are the licensed CICS ratings. “Derived %” is a summary metric only. Recommended strategies are drawn from your licensed CIRCLE resource, with citations.</div>`
+      html += `<div style="color:var(--ink-soft);font-size:0.78rem;margin-top:1rem;text-align:center">All scores are the licensed ${escapeHtml(circleContent.instrument.code)} ratings. “Derived %” is a summary metric only. Recommended strategies are drawn from your licensed CIRCLE resource, with citations.</div>`
       c.innerHTML = html
       // Show a previously-generated analysis instantly (no repeat API call)
       if (a.ai_analysis) renderCircleAI(document.getElementById('circle-ai-out'), a.ai_analysis)
     }
 
     // ── AI analysis (Phase 4) ──
+    // Resolve a CIRCLE strategy area for an item so the AI retrieves the right
+    // licensed strategies. CPS skill-area section codes already match the area
+    // codes; CICS items map by name.
+    const CIRCLE_SKILL_AREAS = ['attention', 'organisation', 'gross_motor', 'fine_motor', 'social_emotional', 'communication']
+    const CICS_AREA_MAP = {
+      'Accessibility of Space': 'gross_motor', 'Adequacy of Space': 'gross_motor', 'Sensory Space': 'attention', 'Visual supports': 'communication', 'Availability of Objects': 'fine_motor',
+      'Attitudes': 'social_emotional', 'Support and Facilitation': 'communication', 'Relationships': 'social_emotional', 'Provision of Information': 'communication', 'Empowerment': 'social_emotional',
+      'Activity Demands': 'attention', 'Expectations': 'organisation', 'Appeal of Activities': 'attention', 'Routines': 'organisation', 'Decision-making': 'social_emotional',
+    }
+    function circleItemArea(sectionCode, itemName) {
+      if (CIRCLE_SKILL_AREAS.includes(sectionCode)) return sectionCode
+      return CICS_AREA_MAP[itemName] || null
+    }
     const CIRCLE_AI_STEPS = ['Reading the ratings…', 'Weighing strengths and gaps…', 'Spotting patterns across domains…', 'Drafting SMART action plans…', 'Almost there…']
     async function circleGenerateAI() {
       const out = document.getElementById('circle-ai-out')
@@ -3404,12 +3440,18 @@
       }, 1600)
 
       const s = circleScore()
+      const dev = circleContent.instrument.develop_at_or_below || 2
+      const sectionsPayload = s.sections.map((sec) => ({
+        name: sec.sec.name,
+        mean: +sec.mean.toFixed(2),
+        items: sec.items.map((x) => ({ name: x.it.name, rating: x.rating, area: circleItemArea(sec.sec.code, x.it.name) })),
+      }))
       const payload = {
-        instrument: `${circleContent.cics.name} ${circleContent.cics.version}`,
-        subject: circleDraft.assessment.subject_label || 'a classroom',
+        instrument: `${circleContent.instrument.name} ${circleContent.instrument.version}`,
+        subject: circleDraft.assessment.subject_label || (circleContent.instrument.subject_type === 'pupil' ? 'a pupil' : 'a classroom'),
         overallMean: +s.mean.toFixed(2),
-        sections: s.sections.map((sec) => ({ name: sec.sec.name, mean: +sec.mean.toFixed(2), items: sec.items.map((x) => ({ name: x.it.name, rating: x.rating })) })),
-        developItems: s.develop.map((x) => ({ name: x.it.name, rating: x.rating })),
+        sections: sectionsPayload,
+        developItems: sectionsPayload.flatMap((sp) => sp.items).filter((i) => i.rating && i.rating <= dev),
       }
       try {
         const res = await fetch('/.netlify/functions/circle-ai', {
