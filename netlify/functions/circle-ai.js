@@ -70,9 +70,12 @@ Give a grounded interpretation: an overall summary, key strengths, areas for dev
       method: 'POST',
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-opus-5',
-        max_tokens: 3000,
-        output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMA } },
+        // Haiku 4.5: fast + capable enough for this bounded interpretation, and
+        // returns well within Netlify's ~10s synchronous function limit (Opus 5
+        // thinks by default and times out here). No `effort` — it errors on Haiku.
+        model: 'claude-haiku-4-5',
+        max_tokens: 2000,
+        output_config: { format: { type: 'json_schema', schema: SCHEMA } },
         system,
         messages: [{ role: 'user', content: userMsg }],
       }),
