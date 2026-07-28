@@ -94,7 +94,7 @@ exports.handler = async (event) => {
 ${hasLicensed
   ? `- STRATEGIES: You are given the organisation's LICENSED CIRCLE strategies below. Populate "strategies" ONLY with strategies that appear in that licensed text — quote or very closely paraphrase the licensed wording, choose ones relevant to the development areas, and set "source_ref" to the EXACT citation given for that strategy's area. Never invent, rename, or substitute a strategy that is not in the licensed text. If no licensed strategy fits a development area, omit it rather than inventing one.`
   : `- STRATEGIES: No licensed strategy text was available, so return an empty "strategies" array. Do NOT invent CIRCLE strategies.`}
-- Be concise, practical, encouraging, and specific to the ratings. British English.`
+- Keep it tight: at most 3 strengths, 3 development areas, 3 patterns, 3 priorities, and at most 5 strategies (the most relevant). Keep every field to one or two short sentences. British English.`
 
   const userMsg = `Assessment: ${instrument || 'CICS'} for "${subject || 'a classroom'}".
 Overall mean rating: ${overallMean} out of 4.
@@ -113,7 +113,7 @@ Give a grounded interpretation: an overall summary, key strengths, areas for dev
         // returns well within Netlify's ~10s synchronous function limit (Opus 5
         // thinks by default and times out here). No `effort` — it errors on Haiku.
         model: 'claude-haiku-4-5',
-        max_tokens: 2000,
+        max_tokens: 3000,
         output_config: { format: { type: 'json_schema', schema: SCHEMA } },
         system,
         messages: [{ role: 'user', content: userMsg }],
@@ -125,10 +125,11 @@ Give a grounded interpretation: an overall summary, key strengths, areas for dev
     }
     const data = await aRes.json()
     if (data.stop_reason === 'refusal') return json(200, { error: 'The AI declined to analyse this content.' })
+    if (data.stop_reason === 'max_tokens') return json(200, { error: 'The analysis was too long to finish — please try again.' })
     const textBlock = (data.content || []).find((b) => b.type === 'text')
     let analysis = null
     try { analysis = JSON.parse(textBlock ? textBlock.text : '{}') } catch (_) {}
-    if (!analysis) return json(502, { error: 'The AI returned an unreadable response.' })
+    if (!analysis) return json(502, { error: 'The AI returned an unreadable response.', detail: `stop=${data.stop_reason}; ` + String(textBlock ? textBlock.text : '(no text block)').slice(0, 200) })
     return json(200, { analysis })
   } catch (e) {
     return json(502, { error: 'Could not reach the AI service.', detail: String(e).slice(0, 200) })
