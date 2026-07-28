@@ -3378,6 +3378,8 @@
 
       html += `<div style="color:var(--ink-soft);font-size:0.78rem;margin-top:1rem;text-align:center">All scores are the licensed CICS ratings. “Derived %” is a summary metric only. Recommended strategies are drawn from your licensed CIRCLE resource, with citations.</div>`
       c.innerHTML = html
+      // Show a previously-generated analysis instantly (no repeat API call)
+      if (a.ai_analysis) renderCircleAI(document.getElementById('circle-ai-out'), a.ai_analysis)
     }
 
     // ── AI analysis (Phase 4) ──
@@ -3423,6 +3425,14 @@
           return
         }
         renderCircleAI(out, data.analysis)
+        // Cache it against the assessment so re-opening doesn't re-bill the API
+        circleDraft.assessment.ai_analysis = data.analysis
+        try {
+          await fetch(`${SUPABASE_URL}/rest/v1/circle_assessments?id=eq.${circleDraft.assessment.id}`, {
+            method: 'PATCH', headers: { ...headers(session.access_token), 'Prefer': 'return=minimal' },
+            body: JSON.stringify({ ai_analysis: data.analysis, ai_analysis_at: new Date().toISOString() }),
+          })
+        } catch (_) {}
       } catch (e) {
         clearInterval(timer)
         out.innerHTML = circleWarn('Could not reach the AI service', String(e)) +
