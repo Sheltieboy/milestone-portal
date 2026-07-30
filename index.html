@@ -1955,6 +1955,32 @@
     </div>
   </div>
 
+  <!-- SCERTS observation note -->
+  <div class="modal-overlay" id="modal-scerts-obs">
+    <div class="modal" style="max-width:560px">
+      <div class="modal-title">Observation note</div>
+      <div id="scerts-obs-target" style="font-size:0.85rem;color:var(--ink-soft);margin:-0.9rem 0 1.2rem"></div>
+
+      <div class="form-group">
+        <label class="form-label">Learner response <span style="color:#dc2626">*</span></label>
+        <div id="scerts-obs-ratings" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group" style="margin:0"><label class="form-label">Date</label><input type="date" id="scerts-obs-date" class="form-input"></div>
+        <div class="form-group" style="margin:0"><label class="form-label">Support used</label><select id="scerts-obs-support" class="form-input"></select></div>
+      </div>
+      <div class="form-group" style="margin-top:12px"><label class="form-label">Context</label><input id="scerts-obs-context" class="form-input" placeholder="e.g. snack routine, paired play, carpet time"></div>
+      <div class="form-group"><label class="form-label">What happened</label><textarea id="scerts-obs-response" class="form-input" rows="2" placeholder="What the learner did"></textarea></div>
+      <div class="form-group"><label class="form-label">Next steps</label><textarea id="scerts-obs-next" class="form-input" rows="2" placeholder="What to try next"></textarea></div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="document.getElementById('modal-scerts-obs').style.display='none'">Cancel</button>
+        <button class="btn" id="scerts-obs-save" onclick="scertsSaveObservation()">Save note</button>
+      </div>
+      <div id="scerts-obs-msg" style="font-size:0.82rem;color:#dc2626;margin-top:8px;height:16px"></div>
+    </div>
+  </div>
+
   <!-- Record leave -->
   <div class="modal-overlay" id="modal-leave">
     <div class="modal" style="max-width:520px">
@@ -3913,24 +3939,35 @@
          </div>`
 
       // progress
-      html += `<div class="passport-section" style="margin-top:1rem"><div class="passport-section-title">Progress monitoring</div>
-         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">`
-      SCERTS_RATINGS.forEach(([k, label, col]) => {
-        html += `<button class="btn btn-sm" style="background:${col};border-color:${col}" onclick="scertsRecordProgress('${k}')">${label}</button>`
-      })
-      html += `</div>`
-      if (!progress.length) html += `<div style="color:var(--ink-soft);font-size:0.85rem">No entries yet. Tap a rating above after a session.</div>`
-      else {
-        html += `<div style="display:flex;flex-direction:column;gap:6px">`
+      html += `<div class="passport-section" style="margin-top:1rem">
+         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+           <div class="passport-section-title" style="margin:0">Observation notes &amp; progress</div>
+           <div style="display:flex;gap:8px">
+             <button class="btn btn-sm" onclick="scertsRecordProgress()">＋ Add note</button>
+             ${progress.length >= 2 ? `<button class="btn btn-sm btn-secondary" onclick="scertsSummariseProgress()">Summarise progress ✨</button>` : ''}
+           </div>
+         </div>
+         <div id="scerts-progress-ai" style="margin:10px 0"></div>`
+      if (!progress.length) {
+        html += `<div style="color:var(--ink-soft);font-size:0.85rem">No notes yet. Add one after a session — date, context, support used, what happened and next steps.</div>`
+      } else {
+        html += `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.84rem;min-width:620px">
+           <thead><tr style="text-align:left;color:var(--ink-soft);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.4px">
+             <th style="padding:6px 8px">Date</th><th style="padding:6px 8px">Response</th><th style="padding:6px 8px">Context</th>
+             <th style="padding:6px 8px">Support used</th><th style="padding:6px 8px">What happened</th><th style="padding:6px 8px">Next steps</th>
+           </tr></thead><tbody>`
         progress.forEach((g) => {
           const [, label, col] = scertsRatingMeta(g.rating)
-          html += `<div style="display:flex;align-items:center;gap:10px;font-size:0.85rem">
-             <span style="background:${col};color:#fff;font-weight:700;font-size:0.72rem;padding:2px 8px;border-radius:12px">${escapeHtml(label)}</span>
-             <span style="color:var(--ink-soft)">${escapeHtml(g.recorded_on)}</span>
-             ${g.next_steps ? `<span style="flex:1">${escapeHtml(g.next_steps)}</span>` : ''}
-           </div>`
+          html += `<tr style="border-top:1px solid var(--border)">
+             <td style="padding:7px 8px;white-space:nowrap;color:var(--ink-soft)">${escapeHtml(g.recorded_on || '')}</td>
+             <td style="padding:7px 8px"><span style="background:${col};color:#fff;font-weight:700;font-size:0.7rem;padding:2px 8px;border-radius:12px;white-space:nowrap">${escapeHtml(label)}</span></td>
+             <td style="padding:7px 8px">${escapeHtml(g.context || '—')}</td>
+             <td style="padding:7px 8px">${escapeHtml(g.support_used || '—')}</td>
+             <td style="padding:7px 8px">${escapeHtml(g.response || '—')}</td>
+             <td style="padding:7px 8px">${escapeHtml(g.next_steps || '—')}</td>
+           </tr>`
         })
-        html += `</div>`
+        html += `</tbody></table></div>`
       }
       html += `</div>`
       c.innerHTML = html
@@ -4022,15 +4059,94 @@
       out.innerHTML = h
     }
 
-    async function scertsRecordProgress(rating) {
-      const next = prompt('Next steps / note (optional):') || null
+    // ── Observation note (full template: date, context, support used, response, next steps) ──
+    let scertsObsRating = null
+
+    function scertsRecordProgress(rating) {
+      scertsObsRating = rating || null
+      const { plan, supports } = scertsPlan
+      document.getElementById('scerts-obs-target').innerHTML =
+        `<strong style="color:#6d3fd4">${escapeHtml(plan.target_code || '')}</strong> ${escapeHtml(plan.target_text || '')} · ${escapeHtml(plan.learner_label || '')}`
+      document.getElementById('scerts-obs-date').value = new Date().toISOString().slice(0, 10)
+      document.getElementById('scerts-obs-support').innerHTML =
+        `<option value="">(none / not recorded)</option>` +
+        supports.map((s) => `<option value="${escapeHtml(s.support_code || '')}">${escapeHtml((s.support_code || '') + ' — ' + (s.support_text || ''))}</option>`).join('')
+      ;['scerts-obs-context', 'scerts-obs-response', 'scerts-obs-next'].forEach((id) => { document.getElementById(id).value = '' })
+      document.getElementById('scerts-obs-msg').textContent = ''
+      scertsRenderObsRatings()
+      document.getElementById('modal-scerts-obs').style.display = 'flex'
+    }
+
+    function scertsRenderObsRatings() {
+      const wrap = document.getElementById('scerts-obs-ratings')
+      wrap.innerHTML = SCERTS_RATINGS.map(([k, label, col]) => {
+        const on = scertsObsRating === k
+        return `<button type="button" onclick="scertsObsRating='${k}';scertsRenderObsRatings()" style="border:1.5px solid ${on ? col : 'var(--border)'};background:${on ? col : '#fff'};color:${on ? '#fff' : 'var(--ink)'};border-radius:20px;padding:6px 13px;cursor:pointer;font-size:0.83rem;font-weight:${on ? '700' : '500'}">${label}</button>`
+      }).join('')
+    }
+
+    async function scertsSaveObservation() {
+      const msg = document.getElementById('scerts-obs-msg')
+      const btn = document.getElementById('scerts-obs-save')
+      if (!scertsObsRating) { msg.textContent = 'Choose how the learner responded.'; return }
+      const val = (id) => (document.getElementById(id).value || '').trim() || null
+      btn.disabled = true; msg.style.color = 'var(--ink-soft)'; msg.textContent = 'Saving…'
       try {
-        await fetch(`${SUPABASE_URL}/rest/v1/scerts_progress`, {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/scerts_progress`, {
           method: 'POST', headers: { ...headers(session.access_token), 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ plan_id: scertsPlan.plan.id, rating, next_steps: next, recorded_by: session.user.id }),
+          body: JSON.stringify({
+            plan_id: scertsPlan.plan.id, rating: scertsObsRating,
+            recorded_on: document.getElementById('scerts-obs-date').value || undefined,
+            context: val('scerts-obs-context'), support_used: val('scerts-obs-support'),
+            response: val('scerts-obs-response'), next_steps: val('scerts-obs-next'),
+            recorded_by: session.user.id,
+          }),
         })
+        if (!res.ok) throw new Error('Could not save (' + res.status + ')')
+        document.getElementById('modal-scerts-obs').style.display = 'none'
         scertsOpenPlan(scertsPlan.plan.id)
-      } catch (_) { alert('Could not save that entry.') }
+      } catch (e) { msg.style.color = '#dc2626'; msg.textContent = e.message }
+      finally { btn.disabled = false }
+    }
+
+    // ── AI progress summary + readiness to review ──
+    async function scertsSummariseProgress() {
+      const out = document.getElementById('scerts-progress-ai')
+      if (!out) return
+      const { plan, progress } = scertsPlan
+      if (progress.length < 2) { out.innerHTML = `<div style="color:var(--ink-soft);font-size:0.85rem">Record at least two observation notes to summarise progress.</div>`; return }
+      out.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:4px 0"><span class="circle-spinner"></span><span style="font-size:0.85rem;color:#6d3fd4;font-weight:600">Reviewing the observation notes…</span></div>`
+      try {
+        const res = await fetch('/.netlify/functions/scerts-ai', {
+          method: 'POST', headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+          body: JSON.stringify({
+            mode: 'progress_summary',
+            target: { code: plan.target_code, text: plan.target_text },
+            entries: progress.slice().reverse().map((g) => ({ date: g.recorded_on, rating: g.rating, context: g.context, support_used: g.support_used, response: g.response, next_steps: g.next_steps })),
+          }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok || data.error || !data.summary) {
+          out.innerHTML = scertsWarn('Could not summarise progress', (data && data.error) || ('Service error ' + res.status))
+          return
+        }
+        const s = data.summary
+        const READY = { keep_going: ['Keep going', '#2d8a5e'], ready_for_review: ['Ready for review', '#d97706'], ready_to_progress: ['Ready for a new target', '#15803d'] }
+        const [rl, rc] = READY[s.readiness] || ['—', '#64748b']
+        out.innerHTML =
+          `<div style="background:#f6f3fc;border-radius:10px;padding:12px 14px">
+             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+               <span style="background:${rc};color:#fff;font-weight:700;font-size:0.75rem;padding:3px 10px;border-radius:14px">${rl}</span>
+               ${s.trend ? `<span style="font-size:0.8rem;color:var(--ink-soft)">${escapeHtml(s.trend)}</span>` : ''}
+             </div>
+             <div style="font-size:0.9rem;line-height:1.5">${escapeHtml(s.summary)}</div>
+             ${s.rationale ? `<div style="font-size:0.83rem;color:var(--ink-soft);margin-top:6px"><strong>Why:</strong> ${escapeHtml(s.rationale)}</div>` : ''}
+             ${s.next_focus ? `<div style="font-size:0.83rem;margin-top:6px"><strong>Suggested next focus:</strong> ${escapeHtml(s.next_focus)}</div>` : ''}
+             <div style="font-size:0.72rem;color:#6d3fd4;margin-top:8px">AI interpretation of your notes — your professional judgement decides.</div>
+           </div>`
+      } catch (e) {
+        out.innerHTML = scertsWarn('Could not reach the AI service', String(e))
+      }
     }
 
     function scertsExportPlan() {
@@ -4042,6 +4158,8 @@
       L.push(`Learner: ${plan.learner_label || ''}`)
       L.push(`Date: ${(plan.created_at || '').slice(0, 10)}    Review: ${plan.review_date || '—'}`)
       L.push(`SCERTS stage: ${stage}`)
+      const dm = { JA: 'Social Communication (Joint Attention)', SU: 'Social Communication (Symbol Use)', MR: 'Emotional Regulation (Mutual Regulation)', SR: 'Emotional Regulation (Self-Regulation)' }
+      L.push(`Domain: ${dm[(plan.target_code || '').slice(0, 2)] || '—'}`)
       L.push(``)
       L.push(`TARGET  ${plan.target_code || ''}`)
       L.push(`  ${plan.target_text || ''}`)

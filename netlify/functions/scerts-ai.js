@@ -43,6 +43,18 @@ const SUGGEST_SCHEMA = {
   required: ['codes'],
 }
 
+const SUMMARY_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    summary: { type: 'string' },
+    trend: { type: 'string' },
+    readiness: { type: 'string', enum: ['keep_going', 'ready_for_review', 'ready_to_progress'] },
+    rationale: { type: 'string' },
+    next_focus: { type: 'string' },
+  },
+  required: ['summary', 'trend', 'readiness', 'rationale', 'next_focus'],
+}
+
 const BASE_RULES = `You assist Additional Support Needs (ASN) teachers in Scotland who are planning SCERTS interventions. Rules you must follow exactly:
 - The SCERTS target and the Transactional Supports are supplied to you from the school's LICENSED SCERTS materials. NEVER invent, rename or substitute a target or a support that is not supplied. Work only with what you are given.
 - Stay faithful to SCERTS terminology (Social Communication, Emotional Regulation, Transactional Support; Joint Attention, Symbol Use, Mutual Regulation, Self-Regulation, Interpersonal Support, Learning Support).
@@ -70,8 +82,45 @@ exports.handler = async (event) => {
 
   let p
   try { p = JSON.parse(event.body || '{}') } catch (_) { return json(400, { error: 'Bad request.' }) }
-  const { mode, target, supports = [], stage, learner } = p
+  const { mode, target, supports = [], stage, learner, entries = [] } = p
   if (!target || !target.text) return json(400, { error: 'Missing target.' })
+
+  // ── Mode: summarise progress over time + readiness to review ──
+  if (mode === 'progress_summary') {
+    if (entries.length < 2) return json(400, { error: 'Need at least two observation notes.' })
+    const RATING_ORDER = 'not_yet < emerging < developing < consistent < generalised'
+    const log = entries.map((e) =>
+      `${e.date || '?'} — ${e.rating}${e.context ? ` | context: ${e.context}` : ''}${e.support_used ? ` | support: ${e.support_used}` : ''}${e.response ? ` | response: ${e.response}` : ''}${e.next_steps ? ` | next: ${e.next_steps}` : ''}`
+    ).join('\n')
+    const sys = `${BASE_RULES}
+- You are reviewing a teacher's own observation notes against ONE SCERTS target. Base everything on those notes; do not invent evidence.
+- Progress scale (low→high): ${RATING_ORDER}.
+- "readiness": "keep_going" if the target still needs work; "ready_for_review" if progress has plateaued or the evidence is mixed and the plan should be revisited; "ready_to_progress" only if the learner is consistently or generally meeting the target across contexts.
+- "next_focus" is a short suggestion of what to focus on next — describe it in SCERTS terms, but do NOT name a specific new target code (the teacher selects that from the licensed library).
+- Be encouraging and concrete; one or two short sentences per field.`
+    try {
+      const r = await fetch(ANTHROPIC_URL, {
+        method: 'POST',
+        headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5', max_tokens: 900,
+          output_config: { format: { type: 'json_schema', schema: SUMMARY_SCHEMA } },
+          system: sys,
+          messages: [{ role: 'user', content: `Target ${target.code || ''}: ${target.text}\n\nObservation notes (oldest first):\n${log}\n\nSummarise progress and judge readiness.` }],
+        }),
+      })
+      if (!r.ok) return json(502, { error: 'The AI request failed.' })
+      const d = await r.json()
+      if (d.stop_reason === 'refusal') return json(200, { error: 'The AI declined this request.' })
+      const tb = (d.content || []).find((b) => b.type === 'text')
+      let summary = null
+      try { summary = JSON.parse(tb ? tb.text : '{}') } catch (_) {}
+      if (!summary || !summary.summary) return json(502, { error: 'The AI returned an unreadable response.' })
+      return json(200, { summary })
+    } catch (e) {
+      return json(502, { error: 'Could not reach the AI service.' })
+    }
+  }
 
   // ── Mode: suggest supports from the licensed list ──
   if (mode === 'suggest_supports') {
