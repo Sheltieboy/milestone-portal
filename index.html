@@ -1521,9 +1521,12 @@
           <span class="sidebar-link-icon">🛡️</span> Resilience
         </div>
 
-        <div class="sidebar-section">CIRCLE</div>
+        <div class="sidebar-section">Frameworks</div>
         <div class="sidebar-link" onclick="showView('circle')" id="nav-circle">
           <span class="sidebar-link-icon">🔵</span> CIRCLE Assessment
+        </div>
+        <div class="sidebar-link" onclick="showView('scerts')" id="nav-scerts">
+          <span class="sidebar-link-icon">🧩</span> SCERTS Targets
         </div>
 
         <div class="sidebar-section">Classroom</div>
@@ -1934,6 +1937,18 @@
         <div class="content">
           <div id="circle-license"></div>
           <div id="circle-body"></div>
+        </div>
+      </div>
+
+      <!-- SCERTS VIEW -->
+      <div id="view-scerts" style="display:none">
+        <div class="topbar">
+          <div class="topbar-title">SCERTS Targets</div>
+          <div class="topbar-actions" id="scerts-topbar-actions"></div>
+        </div>
+        <div class="content">
+          <div id="scerts-license"></div>
+          <div id="scerts-body"></div>
         </div>
       </div>
 
@@ -2767,13 +2782,14 @@
     // going back/forward through existing history entries.
 
     function showView(view, _fromHistory) {
-      ['dashboard','pupils','hub','settings','sessions','staff','classrooms','timetable','resilience','leave','circle'].forEach(v => {
+      ['dashboard','pupils','hub','settings','sessions','staff','classrooms','timetable','resilience','leave','circle','scerts'].forEach(v => {
         document.getElementById(`view-${v}`).style.display = v === view ? 'block' : 'none'
       })
-      ;['dashboard','pupils','settings','sessions','staff','classrooms','timetable','resilience','leave','circle'].forEach(v => {
+      ;['dashboard','pupils','settings','sessions','staff','classrooms','timetable','resilience','leave','circle','scerts'].forEach(v => {
         document.getElementById(`nav-${v}`)?.classList.toggle('active', v === view)
       })
       if (view === 'circle') loadCircle().catch(() => {})
+      if (view === 'scerts') loadScerts().catch(() => {})
       if (view === 'staff') loadStaff().catch(() => {})
       if (view === 'classrooms') loadClassrooms().catch(() => {})
       if (view === 'timetable') loadTimetable().catch(() => {})
@@ -3521,6 +3537,542 @@
       out.innerHTML = h
     }
 
+
+
+    // ══ SCERTS — target setting & intervention planning ══════════════════════
+    let scertsLic = null      // active licence row
+    let scertsFw = null       // framework content { stages, components, goals, targets }
+    let scertsPick = null     // in-progress picker state
+    let scertsPlan = null     // open plan
+
+    const SCERTS_RATINGS = [
+      ['not_yet', 'Not Yet', '#dc2626'], ['emerging', 'Emerging', '#d97706'],
+      ['developing', 'Developing', '#ca8a04'], ['consistent', 'Consistent', '#2d8a5e'],
+      ['generalised', 'Generalised', '#15803d'],
+    ]
+    const scertsRatingMeta = (r) => SCERTS_RATINGS.find((x) => x[0] === r) || ['', r || '—', '#94a3b8']
+
+    const scertsWarn = (title, msg) =>
+      `<div class="passport-section" style="border-left:4px solid #d97706">
+         <div class="passport-section-title" style="color:#b45309">⚠ ${escapeHtml(title)}</div>
+         <div style="color:var(--ink-soft);font-size:0.9rem">${escapeHtml(msg)}</div>
+       </div>`
+
+    async function loadScerts() {
+      const lic = document.getElementById('scerts-license')
+      const body = document.getElementById('scerts-body')
+      body.innerHTML = ''
+      lic.innerHTML = '<div style="color:var(--ink-soft);padding:0.5rem 0">Loading…</div>'
+      if (!currentProfile?.school_id) {
+        lic.innerHTML = scertsWarn('Set your school first', 'Your account isn’t linked to a school yet — set it under Settings before using SCERTS.')
+        return
+      }
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/scerts_licences?school_id=eq.${currentProfile.school_id}&is_active=eq.true&order=created_at.desc&limit=1`, { headers: headers(session.access_token) })
+        scertsLic = res.ok ? (await res.json())[0] || null : null
+      } catch { scertsLic = null }
+      renderScertsLicence()
+      if (scertsLic) await scertsRenderShell()
+    }
+
+    function renderScertsLicence() {
+      const lic = document.getElementById('scerts-license')
+      if (scertsLic) {
+        lic.innerHTML =
+          `<div class="passport-section" style="border-left:4px solid var(--green-mid);display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+             <div style="flex:1;min-width:220px">
+               <div class="passport-section-title" style="margin:0">🔐 SCERTS licence registered</div>
+               <div style="color:var(--ink-soft);font-size:0.85rem">${escapeHtml(scertsLic.holder || 'This organisation')}${scertsLic.reference ? ' · ' + escapeHtml(scertsLic.reference) : ''}</div>
+             </div>
+             <div style="font-size:0.75rem;color:var(--ink-soft);max-width:420px">Framework content is licensed for internal use by your Local Authority / NHS service only — do not share outside it.</div>
+           </div>`
+        return
+      }
+      lic.innerHTML =
+        `<div class="passport-section" style="border-left:4px solid #d97706">
+           <div class="passport-section-title" style="color:#b45309">🔐 Confirm your SCERTS licence</div>
+           <p style="color:var(--ink-soft);font-size:0.9rem;margin:0 0 12px">The SCERTS framework content is licensed for <strong>internal educational use only</strong>, restricted to your Local Authority / supporting NHS service. Confirm your organisation holds a licence to unlock the target library.</p>
+           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+             <div class="form-group" style="margin:0"><label class="form-label">Licence held by <span style="color:#dc2626">*</span></label><input id="scerts-lic-holder" class="form-input" placeholder="e.g. Shetland Islands Council"></div>
+             <div class="form-group" style="margin:0"><label class="form-label">Reference (optional)</label><input id="scerts-lic-ref" class="form-input" placeholder="purchase / licence ref"></div>
+           </div>
+           <button class="btn" style="margin-top:12px" id="scerts-lic-btn" onclick="scertsRegisterLicence()">Confirm licence &amp; unlock</button>
+           <div id="scerts-lic-msg" style="font-size:0.82rem;margin-top:8px;height:18px"></div>
+         </div>`
+    }
+
+    async function scertsRegisterLicence() {
+      const holder = (document.getElementById('scerts-lic-holder').value || '').trim()
+      const ref = (document.getElementById('scerts-lic-ref').value || '').trim()
+      const msg = document.getElementById('scerts-lic-msg')
+      const btn = document.getElementById('scerts-lic-btn')
+      if (!holder) { msg.style.color = '#dc2626'; msg.textContent = 'Please name the licence holder.'; return }
+      btn.disabled = true; msg.style.color = 'var(--ink-soft)'; msg.textContent = 'Saving…'
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/scerts_licences`, {
+          method: 'POST', headers: { ...headers(session.access_token), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ school_id: currentProfile.school_id, holder, reference: ref || null, edition: 'SCERTS Model (Prizant et al., 2006) + NAIT Scottish adaptation', confirmed_by: session.user.id, is_active: true }),
+        })
+        if (!res.ok) throw new Error('Could not save (' + res.status + ')')
+        await loadScerts()
+      } catch (e) { msg.style.color = '#dc2626'; msg.textContent = e.message }
+      finally { btn.disabled = false }
+    }
+
+    async function scertsLoadFramework() {
+      if (scertsFw) return scertsFw
+      const H = headers(session.access_token)
+      const j = (p) => fetch(`${SUPABASE_URL}/rest/v1/${p}`, { headers: H }).then((r) => (r.ok ? r.json() : []))
+      const [stages, components, goals, targets] = await Promise.all([
+        j('scerts_stages?order=sort_order'),
+        j('scerts_components?order=sort_order'),
+        j('scerts_goals?order=goal_num'),
+        j('scerts_targets?order=sort_order'),
+      ])
+      if (!stages.length || !targets.length) return null
+      scertsFw = {
+        stages, components, goals, targets,
+        goalsFor: (stage, comp) => goals.filter((g) => g.stage_code === stage && g.component_code === comp).sort((a, b) => a.goal_num - b.goal_num),
+        targetsFor: (goalId) => targets.filter((t) => t.goal_id === goalId).sort((a, b) => a.sort_order - b.sort_order),
+        compsIn: (domain) => components.filter((c) => c.domain === domain).sort((a, b) => a.sort_order - b.sort_order),
+        targetById: (id) => targets.find((t) => t.id === id),
+        goalById: (id) => goals.find((g) => g.id === id),
+      }
+      return scertsFw
+    }
+
+    async function scertsRenderShell() {
+      const body = document.getElementById('scerts-body')
+      body.innerHTML = '<div style="color:var(--ink-soft);padding:1rem 0">Loading framework…</div>'
+      const fw = await scertsLoadFramework()
+      if (!fw) { body.innerHTML = scertsWarn('Framework not loaded', 'The SCERTS target library isn’t in the database yet. Run migrations 0045 and 0046, then reload.'); return }
+      body.innerHTML =
+        `<div class="tt-subtabs" style="margin-top:1.2rem">
+           <button class="tt-subtab active" id="sctsub-plans" onclick="scertsShowTab('plans')">Plans</button>
+           <button class="tt-subtab" id="sctsub-new" onclick="scertsShowTab('new')">New plan</button>
+         </div>
+         <div id="scerts-tab-body"></div>`
+      scertsShowTab('plans')
+    }
+
+    function scertsShowTab(tab) {
+      document.getElementById('sctsub-plans')?.classList.toggle('active', tab === 'plans')
+      document.getElementById('sctsub-new')?.classList.toggle('active', tab === 'new')
+      const c = document.getElementById('scerts-tab-body')
+      if (!c) return
+      if (tab === 'new') scertsStartPicker(c)
+      else renderScertsPlans(c)
+    }
+
+    // ── Plans list ──
+    async function renderScertsPlans(container) {
+      container.innerHTML = '<div style="color:var(--ink-soft);padding:1rem 0">Loading…</div>'
+      let rows = []
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/scerts_plans?order=created_at.desc`, { headers: headers(session.access_token) })
+        rows = res.ok ? await res.json() : []
+      } catch (_) {}
+      let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin:1.2rem 0 0.8rem">
+           <div style="font-weight:700;font-size:1.05rem">Intervention plans</div>
+           <button class="btn btn-sm" onclick="scertsShowTab('new')">+ New plan</button>
+         </div>`
+      if (!rows.length) {
+        html += `<div class="passport-section" style="color:var(--ink-soft)">No plans yet. Create one to choose a SCERTS target and its Transactional Supports.</div>`
+      } else {
+        html += `<div style="display:flex;flex-direction:column;gap:8px">`
+        rows.forEach((p) => {
+          const stage = (scertsFw.stages.find((s) => s.code === p.stage_code) || {}).name || ''
+          html += `<div class="passport-section" style="display:flex;align-items:center;gap:12px;cursor:pointer;margin:0" onclick="scertsOpenPlan('${p.id}')">
+             <div style="flex:1">
+               <div style="font-weight:700">${escapeHtml(p.learner_label || 'Learner')} <span style="font-size:0.72rem;color:#6d3fd4;font-weight:700">${escapeHtml(p.target_code || '')}</span></div>
+               <div style="color:var(--ink-soft);font-size:0.8rem">${escapeHtml(p.target_text || '')}</div>
+               <div style="color:var(--ink-soft);font-size:0.75rem;margin-top:2px">${escapeHtml(stage)}${p.review_date ? ' · review ' + escapeHtml(p.review_date) : ''}</div>
+             </div>
+             <span style="color:var(--ink-soft)">›</span>
+           </div>`
+        })
+        html += `</div>`
+      }
+      container.innerHTML = html
+    }
+
+    // ── Guided picker: stage → domain → goal area → target → supports ──
+    function scertsStartPicker(container) {
+      scertsPick = { stage: null, domain: null, goalId: null, targetId: null, supports: new Set() }
+      scertsRenderPicker(container || document.getElementById('scerts-tab-body'))
+    }
+
+    function scertsRenderPicker(c) {
+      const fw = scertsFw
+      const p = scertsPick
+      const chip = (on, label, sub, onclick) =>
+        `<button onclick="${onclick}" style="flex:1;min-width:150px;text-align:left;border:1.5px solid ${on ? 'var(--green-deep)' : 'var(--border)'};background:${on ? 'var(--green-deep)' : '#fff'};color:${on ? '#fff' : 'var(--ink)'};border-radius:12px;padding:11px 13px;cursor:pointer">
+           <div style="font-weight:700;font-size:0.92rem">${label}</div>
+           ${sub ? `<div style="font-size:0.75rem;opacity:0.8;margin-top:2px">${sub}</div>` : ''}
+         </button>`
+
+      // Step 1 — stage
+      let html = `<div style="margin-top:1.2rem"><div class="passport-section-title">Step 1 · Developmental stage</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">`
+      fw.stages.forEach((s) => {
+        html += chip(p.stage === s.code, escapeHtml(s.name), escapeHtml((s.learner_statement || '').slice(0, 58)), `scertsPickStage('${s.code}')`)
+      })
+      html += `</div></div>`
+
+      // Step 2 — domain
+      if (p.stage) {
+        html += `<div style="margin-top:1.4rem"><div class="passport-section-title">Step 2 · Domain</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            ${chip(p.domain === 'SC', 'Social Communication', 'Joint Attention · Symbol Use', `scertsPickDomain('SC')`)}
+            ${chip(p.domain === 'ER', 'Emotional Regulation', 'Mutual · Self-Regulation', `scertsPickDomain('ER')`)}
+          </div>
+          <div style="font-size:0.75rem;color:var(--ink-soft);margin-top:6px">Transactional Supports are chosen in step 5.</div></div>`
+      }
+
+      // Step 3 — goal area (grouped by component)
+      if (p.stage && p.domain) {
+        html += `<div style="margin-top:1.4rem"><div class="passport-section-title">Step 3 · Goal area</div>`
+        fw.compsIn(p.domain).forEach((comp) => {
+          const goals = fw.goalsFor(p.stage, comp.code)
+          if (!goals.length) return
+          html += `<div style="margin-bottom:10px"><div style="font-size:0.8rem;font-weight:700;color:var(--green-mid);margin-bottom:6px">${escapeHtml(comp.name)} (${escapeHtml(comp.code)}) <span style="font-weight:400;color:var(--ink-soft)">— ${escapeHtml(comp.descriptor || '')}</span></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">`
+          goals.forEach((g) => {
+            const on = p.goalId === g.id
+            html += `<button onclick="scertsPickGoal('${g.id}')" style="border:1.5px solid ${on ? 'var(--green-mid)' : 'var(--border)'};background:${on ? '#eaf6ef' : '#fff'};border-radius:20px;padding:7px 13px;cursor:pointer;font-size:0.84rem;font-weight:${on ? '700' : '500'};color:var(--ink)">${escapeHtml(g.name)}</button>`
+          })
+          html += `</div></div>`
+        })
+        html += `</div>`
+      }
+
+      // Step 4 — target
+      if (p.goalId) {
+        const targets = fw.targetsFor(p.goalId)
+        html += `<div style="margin-top:1.4rem"><div class="passport-section-title">Step 4 · Choose a target</div>
+          <div style="display:flex;flex-direction:column;gap:6px">`
+        targets.forEach((t) => {
+          const on = p.targetId === t.id
+          html += `<div onclick="scertsPickTarget('${t.id}')" style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;border:1.5px solid ${on ? 'var(--green-mid)' : 'var(--border)'};background:${on ? '#eaf6ef' : '#fff'};border-radius:10px;padding:9px 12px">
+             <span style="font-weight:800;color:#6d3fd4;font-size:0.78rem;flex:0 0 46px">${escapeHtml(t.code)}</span>
+             <div style="flex:1">
+               <div style="font-size:0.89rem;color:var(--ink)">${escapeHtml(t.description)}</div>
+               ${t.parts && t.parts.length ? `<div style="font-size:0.76rem;color:var(--ink-soft);margin-top:3px">${t.parts.map((x) => escapeHtml(x.letter + '. ' + x.text)).join(' · ')}</div>` : ''}
+               ${t.needs_check ? `<div style="font-size:0.72rem;color:#b45309;margin-top:3px">⚠ Verify wording against your licensed source</div>` : ''}
+             </div>
+           </div>`
+        })
+        html += `</div></div>`
+      }
+
+      // Step 5 — transactional supports
+      if (p.targetId) {
+        html += `<div style="margin-top:1.4rem"><div class="passport-section-title">Step 5 · Transactional Supports <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-soft);font-size:0.75rem">— select as many as needed</span></div>
+          <button class="btn btn-sm btn-secondary" style="margin-bottom:10px" onclick="scertsSuggestSupports()">Suggest supports ✨</button>
+          <div id="scerts-suggest-msg" style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:8px"></div>`
+        fw.compsIn('TS').forEach((comp) => {
+          const goals = fw.goalsFor(p.stage, comp.code)
+          if (!goals.length) return
+          html += `<details ${comp.code === 'IS' ? 'open' : ''} style="margin-bottom:10px"><summary style="cursor:pointer;font-size:0.85rem;font-weight:700;color:var(--green-mid)">${escapeHtml(comp.name)} (${escapeHtml(comp.code)})</summary>`
+          goals.forEach((g) => {
+            html += `<div style="margin:8px 0 4px;font-size:0.78rem;font-weight:600;color:var(--ink-soft)">${escapeHtml(g.name)}</div>`
+            fw.targetsFor(g.id).forEach((t) => {
+              const on = p.supports.has(t.id)
+              html += `<label style="display:flex;gap:9px;align-items:flex-start;padding:5px 8px;border-radius:8px;cursor:pointer;background:${on ? '#f0f8f3' : 'transparent'}">
+                 <input type="checkbox" ${on ? 'checked' : ''} onchange="scertsToggleSupport('${t.id}')" style="margin-top:3px">
+                 <span style="font-size:0.85rem"><strong style="color:#6d3fd4;font-size:0.75rem">${escapeHtml(t.code)}</strong> ${escapeHtml(t.description)}</span>
+               </label>`
+            })
+          })
+          html += `</details>`
+        })
+        html += `</div>`
+
+        // Step 6 — learner + create
+        html += `<div class="passport-section" style="margin-top:1.4rem;max-width:620px">
+            <div class="passport-section-title">Step 6 · Learner &amp; review</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div class="form-group" style="margin:0"><label class="form-label">Learner (name or initials) <span style="color:#dc2626">*</span></label><input id="scerts-learner" class="form-input" placeholder="e.g. J.M. (P4)"></div>
+              <div class="form-group" style="margin:0"><label class="form-label">Review date</label><input type="date" id="scerts-review" class="form-input"></div>
+            </div>
+            <button class="btn" style="margin-top:14px" id="scerts-create-btn" onclick="scertsCreatePlan()">Create plan &amp; generate guidance ✨</button>
+            <div id="scerts-create-msg" style="font-size:0.82rem;margin-top:8px;height:18px"></div>
+          </div>`
+      }
+      c.innerHTML = html
+    }
+
+    const scertsRe = () => scertsRenderPicker(document.getElementById('scerts-tab-body'))
+    function scertsPickStage(code) { scertsPick.stage = code; scertsPick.goalId = null; scertsPick.targetId = null; scertsPick.supports = new Set(); scertsRe() }
+    function scertsPickDomain(d) { scertsPick.domain = d; scertsPick.goalId = null; scertsPick.targetId = null; scertsRe() }
+    function scertsPickGoal(id) { scertsPick.goalId = id; scertsPick.targetId = null; scertsRe() }
+    function scertsPickTarget(id) { scertsPick.targetId = id; scertsRe() }
+    function scertsToggleSupport(id) { scertsPick.supports.has(id) ? scertsPick.supports.delete(id) : scertsPick.supports.add(id); scertsRe() }
+
+    // Smart suggestions — the AI picks from the LICENSED TS list only
+    async function scertsSuggestSupports() {
+      const msg = document.getElementById('scerts-suggest-msg')
+      msg.textContent = 'Looking at the licensed Transactional Supports…'
+      const t = scertsFw.targetById(scertsPick.targetId)
+      const tsTargets = scertsFw.compsIn('TS').flatMap((c) => scertsFw.goalsFor(scertsPick.stage, c.code)).flatMap((g) => scertsFw.targetsFor(g.id))
+      try {
+        const res = await fetch('/.netlify/functions/scerts-ai', {
+          method: 'POST', headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+          body: JSON.stringify({ mode: 'suggest_supports', target: { code: t.code, text: t.description }, supports: tsTargets.map((x) => ({ code: x.code, text: x.description })) }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok || data.error || !data.codes) { msg.textContent = (data && data.error) || 'Could not suggest supports.'; return }
+        const byCode = {}; tsTargets.forEach((x) => { byCode[x.code] = x.id })
+        let n = 0
+        data.codes.forEach((code) => { if (byCode[code]) { scertsPick.supports.add(byCode[code]); n++ } })
+        scertsRe()
+        const m2 = document.getElementById('scerts-suggest-msg')
+        if (m2) m2.textContent = `Ticked ${n} suggested support${n === 1 ? '' : 's'} — review and adjust as you see fit.`
+      } catch (e) { msg.textContent = 'Could not reach the AI service.' }
+    }
+
+    async function scertsCreatePlan() {
+      const learner = (document.getElementById('scerts-learner').value || '').trim()
+      const review = document.getElementById('scerts-review').value || null
+      const msg = document.getElementById('scerts-create-msg')
+      const btn = document.getElementById('scerts-create-btn')
+      if (!learner) { msg.style.color = '#dc2626'; msg.textContent = 'Please name the learner.'; return }
+      const t = scertsFw.targetById(scertsPick.targetId)
+      btn.disabled = true; msg.style.color = 'var(--ink-soft)'; msg.textContent = 'Creating plan…'
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/scerts_plans`, {
+          method: 'POST', headers: { ...headers(session.access_token), 'Prefer': 'return=representation' },
+          body: JSON.stringify({
+            school_id: currentProfile.school_id, learner_label: learner, stage_code: scertsPick.stage,
+            target_id: t.id, target_code: t.code, target_text: t.description,
+            review_date: review, status: 'active', created_by: session.user.id,
+          }),
+        })
+        if (!res.ok) throw new Error('Could not create plan (' + res.status + ')')
+        const plan = (await res.json())[0]
+        const sups = Array.from(scertsPick.supports).map((id, i) => {
+          const s = scertsFw.targetById(id)
+          return { plan_id: plan.id, target_id: id, support_code: s.code, support_text: s.description, sort_order: i }
+        })
+        if (sups.length) {
+          await fetch(`${SUPABASE_URL}/rest/v1/scerts_plan_supports`, {
+            method: 'POST', headers: { ...headers(session.access_token), 'Prefer': 'return=minimal' }, body: JSON.stringify(sups),
+          })
+        }
+        scertsOpenPlan(plan.id, true)
+      } catch (e) { msg.style.color = '#dc2626'; msg.textContent = e.message }
+      finally { btn.disabled = false }
+    }
+
+    // ── Plan view ──
+    async function scertsOpenPlan(id, autoGenerate) {
+      const c = document.getElementById('scerts-tab-body')
+      c.innerHTML = '<div style="color:var(--ink-soft);padding:1rem 0">Loading plan…</div>'
+      const H = headers(session.access_token)
+      const [pRes, sRes, gRes] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/scerts_plans?id=eq.${id}`, { headers: H }),
+        fetch(`${SUPABASE_URL}/rest/v1/scerts_plan_supports?plan_id=eq.${id}&order=sort_order`, { headers: H }),
+        fetch(`${SUPABASE_URL}/rest/v1/scerts_progress?plan_id=eq.${id}&order=recorded_on.desc`, { headers: H }),
+      ])
+      const plan = (await pRes.json())[0]
+      if (!plan) { c.innerHTML = scertsWarn('Not found', 'That plan could not be loaded.'); return }
+      scertsPlan = { plan, supports: sRes.ok ? await sRes.json() : [], progress: gRes.ok ? await gRes.json() : [] }
+      renderScertsPlan()
+      if (autoGenerate && !plan.ai_plan) scertsGeneratePlan()
+    }
+
+    function renderScertsPlan() {
+      const c = document.getElementById('scerts-tab-body')
+      const { plan, supports, progress } = scertsPlan
+      const stage = (scertsFw.stages.find((s) => s.code === plan.stage_code) || {}).name || ''
+      let html =
+        `<div style="display:flex;justify-content:space-between;align-items:center;margin:1.2rem 0 0.8rem;flex-wrap:wrap;gap:10px">
+           <div><div style="font-weight:700;font-size:1.15rem">${escapeHtml(plan.learner_label || 'Learner')}</div>
+             <div style="color:var(--ink-soft);font-size:0.82rem">${escapeHtml(stage)}${plan.review_date ? ' · review ' + escapeHtml(plan.review_date) : ''}</div></div>
+           <div style="display:flex;gap:8px">
+             <button class="btn btn-secondary btn-sm" onclick="scertsShowTab('plans')">← All plans</button>
+             <button class="btn btn-secondary btn-sm" onclick="scertsExportPlan()">Export ILP</button>
+           </div>
+         </div>
+         <div class="passport-section" style="border-left:4px solid var(--green-deep)">
+           <div class="passport-section-title">SCERTS target</div>
+           <div style="font-weight:700;font-size:1rem"><span style="color:#6d3fd4;font-size:0.8rem">${escapeHtml(plan.target_code || '')}</span> ${escapeHtml(plan.target_text || '')}</div>
+         </div>`
+
+      if (supports.length) {
+        html += `<div class="passport-section" style="margin-top:1rem"><div class="passport-section-title">Transactional Supports selected</div><div style="display:flex;flex-direction:column;gap:5px">`
+        supports.forEach((s) => {
+          html += `<div style="font-size:0.88rem"><strong style="color:#6d3fd4;font-size:0.75rem">${escapeHtml(s.support_code || '')}</strong> ${escapeHtml(s.support_text || '')}</div>`
+        })
+        html += `</div></div>`
+      }
+
+      html += `<div class="passport-section" style="margin-top:1rem;border-left:4px solid #7c3aed">
+           <div class="passport-section-title" style="color:#6d3fd4">AI guidance ✨ <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-soft);font-size:0.75rem">— planning support; targets &amp; supports come from your licensed SCERTS materials</span></div>
+           <div id="scerts-ai-out"></div>
+         </div>`
+
+      // progress
+      html += `<div class="passport-section" style="margin-top:1rem"><div class="passport-section-title">Progress monitoring</div>
+         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">`
+      SCERTS_RATINGS.forEach(([k, label, col]) => {
+        html += `<button class="btn btn-sm" style="background:${col};border-color:${col}" onclick="scertsRecordProgress('${k}')">${label}</button>`
+      })
+      html += `</div>`
+      if (!progress.length) html += `<div style="color:var(--ink-soft);font-size:0.85rem">No entries yet. Tap a rating above after a session.</div>`
+      else {
+        html += `<div style="display:flex;flex-direction:column;gap:6px">`
+        progress.forEach((g) => {
+          const [, label, col] = scertsRatingMeta(g.rating)
+          html += `<div style="display:flex;align-items:center;gap:10px;font-size:0.85rem">
+             <span style="background:${col};color:#fff;font-weight:700;font-size:0.72rem;padding:2px 8px;border-radius:12px">${escapeHtml(label)}</span>
+             <span style="color:var(--ink-soft)">${escapeHtml(g.recorded_on)}</span>
+             ${g.next_steps ? `<span style="flex:1">${escapeHtml(g.next_steps)}</span>` : ''}
+           </div>`
+        })
+        html += `</div>`
+      }
+      html += `</div>`
+      c.innerHTML = html
+
+      if (plan.ai_plan) renderScertsAI(document.getElementById('scerts-ai-out'), plan.ai_plan)
+      else document.getElementById('scerts-ai-out').innerHTML = `<button class="btn btn-sm" onclick="scertsGeneratePlan()">Generate guidance ✨</button>`
+    }
+
+    async function scertsGeneratePlan() {
+      const out = document.getElementById('scerts-ai-out')
+      if (!out) return
+      out.innerHTML =
+        `<div style="display:flex;align-items:center;gap:12px;padding:6px 0">
+           <span class="circle-spinner"></span>
+           <div style="flex:1">
+             <div id="scerts-ai-msg" class="circle-ai-loading" style="font-weight:600;color:#6d3fd4;font-size:0.9rem">Reading the target…</div>
+             <div style="font-size:0.75rem;color:var(--ink-soft)">Building activities and success criteria — usually a few seconds</div>
+             <div class="circle-ai-bar"><i></i></div>
+           </div>
+         </div>`
+      const steps = ['Reading the target…', 'Considering the supports…', 'Drafting classroom activities…', 'Writing success criteria…', 'Almost there…']
+      let i = 0
+      const timer = setInterval(() => { i = Math.min(i + 1, steps.length - 1); const el = document.getElementById('scerts-ai-msg'); if (el) el.textContent = steps[i] }, 1600)
+      const { plan, supports } = scertsPlan
+      const stage = (scertsFw.stages.find((s) => s.code === plan.stage_code) || {}).name || ''
+      try {
+        const res = await fetch('/.netlify/functions/scerts-ai', {
+          method: 'POST', headers: { 'content-type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+          body: JSON.stringify({
+            mode: 'plan', stage, learner: plan.learner_label,
+            target: { code: plan.target_code, text: plan.target_text },
+            supports: supports.map((s) => ({ code: s.support_code, text: s.support_text })),
+          }),
+        })
+        const data = await res.json().catch(() => ({}))
+        clearInterval(timer)
+        if (!res.ok || data.error || !data.plan) {
+          out.innerHTML = scertsWarn('Could not generate guidance', (data && data.error) || ('Service error ' + res.status)) +
+            '<button class="btn btn-sm btn-secondary" style="margin-top:8px" onclick="scertsGeneratePlan()">Try again</button>'
+          return
+        }
+        renderScertsAI(out, data.plan)
+        scertsPlan.plan.ai_plan = data.plan
+        try {
+          await fetch(`${SUPABASE_URL}/rest/v1/scerts_plans?id=eq.${plan.id}`, {
+            method: 'PATCH', headers: { ...headers(session.access_token), 'Prefer': 'return=minimal' },
+            body: JSON.stringify({ ai_plan: data.plan, ai_plan_at: new Date().toISOString() }),
+          })
+        } catch (_) {}
+      } catch (e) {
+        clearInterval(timer)
+        out.innerHTML = scertsWarn('Could not reach the AI service', String(e)) +
+          '<button class="btn btn-sm btn-secondary" style="margin-top:8px" onclick="scertsGeneratePlan()">Try again</button>'
+      }
+    }
+
+    function renderScertsAI(out, a) {
+      let h = `<div style="background:#f6f3fc;border-radius:10px;padding:11px 13px;font-size:0.8rem;color:#6d3fd4;margin-bottom:12px">AI-generated planning support. The target and supports above are from your licensed SCERTS materials; review everything before use.</div>`
+      if (a.why) h += `<div style="font-weight:700;font-size:0.9rem;color:var(--green-deep)">Why this target?</div><p style="font-size:0.9rem;line-height:1.5;margin:4px 0 12px">${escapeHtml(a.why)}</p>`
+      if ((a.supports || []).length) {
+        h += `<div style="font-weight:700;font-size:0.9rem;color:var(--green-deep);margin-top:10px">Using the supports</div><div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">`
+        a.supports.forEach((s) => {
+          h += `<div style="border-left:3px solid #2d8a5e;background:#f2f9f5;border-radius:0 8px 8px 0;padding:9px 11px">
+             <div style="font-weight:700;font-size:0.87rem">${escapeHtml(s.support)}</div>
+             ${s.purpose ? `<div style="font-size:0.83rem;color:var(--ink-soft);margin-top:2px"><strong>Purpose:</strong> ${escapeHtml(s.purpose)}</div>` : ''}
+             ${s.example ? `<div style="font-size:0.83rem;margin-top:2px"><strong>In class:</strong> ${escapeHtml(s.example)}</div>` : ''}
+           </div>`
+        })
+        h += `</div>`
+      }
+      if ((a.activities || []).length) {
+        h += `<div style="font-weight:700;font-size:0.9rem;color:#1f5591;margin-top:14px">Suggested activities</div><div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">`
+        a.activities.forEach((x) => {
+          h += `<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px">
+             <div style="font-weight:700;font-size:0.88rem">${escapeHtml(x.name)}</div>
+             ${x.resources ? `<div style="font-size:0.82rem;color:var(--ink-soft);margin-top:3px"><strong>Resources:</strong> ${escapeHtml(x.resources)}</div>` : ''}
+             ${x.adult_role ? `<div style="font-size:0.82rem;margin-top:2px"><strong>Adult role:</strong> ${escapeHtml(x.adult_role)}</div>` : ''}
+             ${x.learner_response ? `<div style="font-size:0.82rem;margin-top:2px"><strong>Expected response:</strong> ${escapeHtml(x.learner_response)}</div>` : ''}
+             ${x.increase_challenge ? `<div style="font-size:0.82rem;color:var(--ink-soft);margin-top:2px"><strong>Increase challenge:</strong> ${escapeHtml(x.increase_challenge)}</div>` : ''}
+           </div>`
+        })
+        h += `</div>`
+      }
+      if ((a.success_criteria || []).length) {
+        h += `<div style="font-weight:700;font-size:0.9rem;color:var(--green-deep);margin-top:14px">Success criteria</div>
+          <ul style="margin:6px 0 0;padding-left:18px;font-size:0.88rem;line-height:1.6">${a.success_criteria.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>`
+      }
+      h += `<button class="btn btn-sm btn-secondary" style="margin-top:14px" onclick="scertsGeneratePlan()">Regenerate</button>`
+      out.innerHTML = h
+    }
+
+    async function scertsRecordProgress(rating) {
+      const next = prompt('Next steps / note (optional):') || null
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/scerts_progress`, {
+          method: 'POST', headers: { ...headers(session.access_token), 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ plan_id: scertsPlan.plan.id, rating, next_steps: next, recorded_by: session.user.id }),
+        })
+        scertsOpenPlan(scertsPlan.plan.id)
+      } catch (_) { alert('Could not save that entry.') }
+    }
+
+    function scertsExportPlan() {
+      const { plan, supports, progress } = scertsPlan
+      const stage = (scertsFw.stages.find((s) => s.code === plan.stage_code) || {}).name || ''
+      const a = plan.ai_plan || {}
+      const L = []
+      L.push(`SCERTS INDIVIDUAL LEARNING PLAN`)
+      L.push(`Learner: ${plan.learner_label || ''}`)
+      L.push(`Date: ${(plan.created_at || '').slice(0, 10)}    Review: ${plan.review_date || '—'}`)
+      L.push(`SCERTS stage: ${stage}`)
+      L.push(``)
+      L.push(`TARGET  ${plan.target_code || ''}`)
+      L.push(`  ${plan.target_text || ''}`)
+      L.push(``)
+      L.push(`TRANSACTIONAL SUPPORTS`)
+      supports.forEach((s) => L.push(`  ${s.support_code}  ${s.support_text}`))
+      if (a.why) { L.push(``); L.push(`WHY THIS TARGET`); L.push(`  ${a.why}`) }
+      if ((a.activities || []).length) {
+        L.push(``); L.push(`ACTIVITIES`)
+        a.activities.forEach((x) => {
+          L.push(`  • ${x.name}`)
+          if (x.resources) L.push(`      Resources: ${x.resources}`)
+          if (x.adult_role) L.push(`      Adult role: ${x.adult_role}`)
+          if (x.learner_response) L.push(`      Expected response: ${x.learner_response}`)
+        })
+      }
+      if ((a.success_criteria || []).length) { L.push(``); L.push(`SUCCESS CRITERIA`); a.success_criteria.forEach((s) => L.push(`  • ${s}`)) }
+      L.push(``); L.push(`OBSERVATION NOTES`)
+      L.push(`  Date | Context | Support used | Learner response | Next steps`)
+      progress.forEach((g) => L.push(`  ${g.recorded_on} | ${g.context || ''} | ${g.support_used || ''} | ${scertsRatingMeta(g.rating)[1]} | ${g.next_steps || ''}`))
+      L.push(``)
+      L.push(`SCERTS content adapted from Prizant et al. (2006), The SCERTS Model (Brookes Publishing).`)
+      L.push(`Licensed for internal use by ${scertsLic?.holder || 'this organisation'} — do not distribute.`)
+      const blob = new Blob([L.join('\n')], { type: 'text/plain' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `SCERTS_ILP_${(plan.learner_label || 'learner').replace(/[^\w]+/g, '_')}_${(plan.created_at || '').slice(0, 10)}.txt`
+      link.click()
+      URL.revokeObjectURL(url)
+    }
 
 
     // ── BRIEFING WIDGET ──
